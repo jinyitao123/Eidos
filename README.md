@@ -102,7 +102,7 @@ Pipeline CLI (Go binary)
 |-------|-----------|
 | Frontend | React 19 + TypeScript, standalone SPA |
 | Backend | Go (pipeline + MCP server) |
-| Agent Runtime | [Weave](https://github.com/inocube/weave) API |
+| Agent Runtime | [Weave](https://github.com/jinyitao123/Weave) API |
 | Storage | PostgreSQL + Neo4j |
 | Protocol | MCP over JSON-RPC 2.0 |
 

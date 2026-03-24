@@ -102,7 +102,7 @@ Weave API (:8080)
 |----|------|
 | 前端 | React 19 + TypeScript，独立 SPA |
 | 后端 | Go（管道生成器 + MCP 服务器） |
-| Agent 运行时 | [Weave](https://github.com/inocube/weave) API |
+| Agent 运行时 | [Weave](https://github.com/jinyitao123/Weave) API |
 | 存储 | PostgreSQL + Neo4j |
 | 协议 | MCP over JSON-RPC 2.0 |
 
