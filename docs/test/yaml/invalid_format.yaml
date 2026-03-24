@@ -1,0 +1,116 @@
+# 测试用例：格式错误集合
+# 每个 class/attribute/relationship 包含一个特定的格式错误
+# 预期：validate_yaml check_level=format 应报告所有错误
+
+id: format_errors_test
+name: 格式错误测试
+version: "1.0"
+
+classes:
+  # 错误1: id 不是 snake_case (含大写)
+  - id: MyClass
+    name: 错误类1
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: valid_attr
+        name: 正常属性
+        type: string
+
+  # 错误2: id 含空格
+  - id: "bad class"
+    name: 错误类2
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+
+  # 错误3: id 含中文
+  - id: 中文类名
+    name: 错误类3
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+
+  # 错误4: 无效的 attribute type
+  - id: bad_types
+    name: 类型错误
+    phase: alpha
+    attributes:
+      - id: field_a
+        name: 未知类型
+        type: float
+      - id: field_b
+        name: 又一个未知类型
+        type: varchar
+
+  # 错误5: enum 属性缺少 enum_values
+  - id: missing_enum_vals
+    name: 缺少枚举值
+    phase: alpha
+    attributes:
+      - id: status
+        name: 状态
+        type: enum
+        required: true
+        # 缺少 enum_values
+
+  # 错误6: enum_values 为空数组
+  - id: empty_enum_vals
+    name: 空枚举值
+    phase: alpha
+    attributes:
+      - id: level
+        name: 等级
+        type: enum
+        enum_values: []
+
+  # 错误7: derived + required 冲突
+  - id: derived_required_conflict
+    name: 派生必填冲突
+    phase: alpha
+    attributes:
+      - id: total
+        name: 合计
+        type: decimal
+        required: true
+        derived: "qty * price"
+
+  # 错误8: 无效的 phase 值
+  - id: bad_phase
+    name: 无效阶段
+    phase: gamma
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+
+  # 错误9: 重复的 attribute id
+  - id: dup_attrs
+    name: 重复属性
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称1
+        type: string
+      - id: name
+        name: 名称2
+        type: string
+
+relationships:
+  # 错误10: 无效的 cardinality
+  - id: bad_rel
+    name: 无效基数
+    from: bad_types
+    to: bad_phase
+    cardinality: one_to_some
+
+  # 错误11: relationship id 含大写
+  - id: BadRelName
+    name: 大写关系ID
+    from: bad_types
+    to: bad_phase
+    cardinality: many_to_one

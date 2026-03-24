@@ -1,0 +1,152 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid #f0eeeb;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1b16;
+}
+
+.close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #8c8a85;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.close:hover {
+  background: #f0eeeb;
+  color: #1d1b16;
+}
+
+.body {
+  padding: 16px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 24px 20px;
+  border-top: 1px solid #f0eeeb;
+}
+
+.message {
+  font-size: 14px;
+  color: #3d3a35;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.msgError {
+  color: #b3261e;
+}
+
+.msgSuccess {
+  color: #0f6e56;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b6560;
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d6d3cf;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.input:focus {
+  border-color: #993c1d;
+  box-shadow: 0 0 0 2px rgba(153, 60, 29, 0.12);
+}
+
+.btnCancel {
+  padding: 8px 18px;
+  border: 1px solid #d6d3cf;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  color: #3d3a35;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnCancel:hover {
+  background: #f5f3f0;
+}
+
+.btnConfirm {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #993c1d;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.btnConfirm:hover {
+  background: #7d3118;
+}
+
+.btnDanger {
+  background: #b3261e;
+}
+.btnDanger:hover {
+  background: #8c1d18;
+}

@@ -1,0 +1,238 @@
+# 测试用例：边界情况
+# 预期：解析成功，正确处理所有边界情况
+
+id: edge_cases
+name: 边界测试
+version: "1.0"
+
+classes:
+  - id: test_entity
+    name: 测试实体
+    first_citizen: true
+    phase: alpha
+    attributes:
+      # 边界1: 所有可用类型各一个
+      - id: field_string
+        name: 字符串
+        type: string
+      - id: field_text
+        name: 长文本
+        type: text
+      - id: field_integer
+        name: 整数
+        type: integer
+      - id: field_decimal
+        name: 小数
+        type: decimal
+      - id: field_boolean
+        name: 布尔
+        type: boolean
+      - id: field_date
+        name: 日期
+        type: date
+      - id: field_datetime
+        name: 日期时间
+        type: datetime
+      - id: field_enum
+        name: 枚举
+        type: enum
+        enum_values: [A, B, C]
+
+      # 边界2: 有 default 值的属性
+      - id: with_default_int
+        name: 默认整数
+        type: integer
+        default: 0
+      - id: with_default_str
+        name: 默认字符串
+        type: string
+        default: "unknown"
+      - id: with_default_bool
+        name: 默认布尔
+        type: boolean
+        default: false
+
+      # 边界3: 所有可选标记同时开启
+      - id: all_flags
+        name: 全标记
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+        configurable: true
+
+      # 边界4: 非常长的 id (仍合法)
+      - id: this_is_a_very_long_attribute_id_that_should_still_be_valid
+        name: 超长ID
+        type: string
+
+      # 边界5: 单值枚举
+      - id: single_enum
+        name: 单值枚举
+        type: enum
+        enum_values: [ONLY_VALUE]
+
+      # 边界6: 很多枚举值
+      - id: many_enum
+        name: 多值枚举
+        type: enum
+        enum_values: [V01, V02, V03, V04, V05, V06, V07, V08, V09, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20]
+
+      # 边界7: description 字段
+      - id: with_desc
+        name: 带描述
+        type: string
+        description: "这是一个包含特殊字符的描述：引号\"反斜杠\\换行符\n制表符\t"
+
+      # 边界8: phase 在属性级别
+      - id: beta_attr
+        name: Beta属性
+        type: string
+        phase: beta
+
+  - id: self_ref_entity
+    name: 自引用实体
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+        required: true
+      - id: level
+        name: 层级
+        type: integer
+
+relationships:
+  # 边界9: 自引用关系
+  - id: parent_of
+    name: 父级
+    from: self_ref_entity
+    to: self_ref_entity
+    cardinality: many_to_one
+    description: 树形结构的父子关系
+
+  # 边界10: 带 edge_attributes 的关系
+  - id: relates_to
+    name: 关联
+    from: test_entity
+    to: self_ref_entity
+    cardinality: many_to_many
+    edge_attributes:
+      - id: weight
+        name: 权重
+        type: decimal
+      - id: relation_type
+        name: 关系类型
+        type: string
+        enum_values: [STRONG, WEAK, INDIRECT]
+
+rules:
+  # 边界11: FlexStrings - 逗号分隔字符串
+  - id: R01
+    name: FlexStrings测试-字符串
+    phase: alpha
+    severity: warning
+    trigger:
+      type: after_action
+      source: "A01,A02"
+    condition:
+      entity: test_entity
+      expression: "field_integer > 100"
+    action:
+      type: notify
+      target: admin
+
+  # 边界12: FlexStrings - YAML 列表
+  - id: R02
+    name: FlexStrings测试-列表
+    phase: alpha
+    severity: info
+    trigger:
+      type: after_action
+      source:
+        - A01
+        - A02
+    condition:
+      entity: test_entity
+      expression: "field_boolean = true"
+    action:
+      type: set_field
+      target: test_entity.field_string
+      value: "processed"
+
+  # 边界13: cron 触发，空 source
+  - id: R03
+    name: 定时任务
+    phase: alpha
+    severity: info
+    trigger:
+      type: schedule
+      source: []
+      cron: "0 0 * * *"
+    condition:
+      entity: test_entity
+      expression: "field_date < NOW() - INTERVAL '30 days'"
+    action:
+      type: set_field
+      target: test_entity.field_boolean
+      value: "true"
+
+  # 边界14: 带可配置参数的规则
+  - id: R04
+    name: 带参数规则
+    phase: alpha
+    severity: warning
+    trigger:
+      type: before_action
+      source: [A01]
+    condition:
+      entity: test_entity
+      expression: "field_decimal > {{threshold}}"
+    action:
+      type: block
+      target: test_entity
+      message_template: "值 {{field_decimal}} 超过阈值 {{threshold}}"
+    params:
+      - id: threshold
+        name: 阈值
+        type: decimal
+        default: 1000.0
+        configurable: true
+
+actions:
+  - id: A01
+    name: 测试操作1
+    phase: alpha
+    params:
+      - id: entity_id
+        name: 实体ID
+        type: string
+        required: true
+      - id: optional_note
+        name: 备注
+        type: string
+    writes:
+      - target: test_entity
+        operation: update
+        set:
+          field_string: "updated"
+    triggers_before: [R04]
+    triggers_after: [R01, R02]
+    permission:
+      roles: [admin, operator]
+      agents: [test-agent]
+    decision_log: true
+
+  - id: A02
+    name: 测试操作2
+    phase: alpha
+    params:
+      - id: entity_id
+        name: 实体ID
+        type: string
+        required: true
+    writes:
+      - target: test_entity
+        operation: insert
+    permission:
+      roles: [admin]

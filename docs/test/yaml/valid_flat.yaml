@@ -1,0 +1,99 @@
+# 测试用例：flat 格式 (顶层 id, name, classes, relationships)
+# 预期：解析成功，id = "logistics"
+id: logistics
+name: 物流运输
+version: "1.0"
+description: 物流配送管理本体
+
+classes:
+  - id: shipment
+    name: 运单
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: tracking_no
+        name: 运单号
+        type: string
+        required: true
+        unique: true
+      - id: origin
+        name: 发货地
+        type: string
+        required: true
+      - id: destination
+        name: 目的地
+        type: string
+        required: true
+      - id: weight
+        name: 重量
+        type: decimal
+        unit: kg
+      - id: status
+        name: 状态
+        type: enum
+        required: true
+        enum_values: [CREATED, PICKED_UP, IN_TRANSIT, DELIVERED, RETURNED]
+        graph_sync: true
+      - id: estimated_arrival
+        name: 预计到达
+        type: datetime
+      - id: actual_arrival
+        name: 实际到达
+        type: datetime
+      - id: delivery_days
+        name: 配送天数
+        type: integer
+        derived: "DATEDIFF(days, created_at, actual_arrival)"
+      - id: created_at
+        name: 创建时间
+        type: datetime
+
+  - id: driver
+    name: 司机
+    phase: alpha
+    attributes:
+      - id: name
+        name: 姓名
+        type: string
+        required: true
+      - id: license_plate
+        name: 车牌号
+        type: string
+        required: true
+      - id: phone
+        name: 联系电话
+        type: string
+      - id: active
+        name: 是否在线
+        type: boolean
+        graph_sync: true
+
+  - id: route
+    name: 路线
+    phase: alpha
+    attributes:
+      - id: name
+        name: 路线名称
+        type: string
+        required: true
+      - id: distance
+        name: 距离
+        type: decimal
+        unit: km
+      - id: avg_duration
+        name: 平均用时
+        type: decimal
+        unit: hours
+
+relationships:
+  - id: assigned_to
+    name: 分配给
+    from: shipment
+    to: driver
+    cardinality: many_to_one
+
+  - id: follows
+    name: 走的路线
+    from: shipment
+    to: route
+    cardinality: many_to_one

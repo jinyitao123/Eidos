@@ -1,0 +1,123 @@
+<style>
+*{box-sizing:border-box;margin:0}
+.w{font-family:var(--font-sans);color:var(--color-text-primary);max-width:680px}
+.back{font-size:13px;color:var(--color-text-secondary);cursor:pointer;margin-bottom:12px;display:inline-block}
+.hd{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.hd-name{font-size:18px;font-weight:500}
+.hd-badge{font-size:11px;padding:2px 10px;border-radius:99px;font-weight:500}
+.hd-pass{background:var(--color-background-success);color:var(--color-text-success)}
+.hd-issues{background:var(--color-background-warning);color:var(--color-text-warning)}
+.summary{display:flex;gap:12px;margin-bottom:20px}
+.sum-card{flex:1;padding:12px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);text-align:center}
+.sum-num{font-size:22px;font-weight:500}
+.sum-label{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.section{margin-bottom:20px}
+.sec-hd{font-size:14px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.sec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.issue-list{display:flex;flex-direction:column;gap:8px}
+.issue{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px;background:var(--color-background-primary)}
+.issue-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.issue-type{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+.type-consist{background:var(--color-background-danger);color:var(--color-text-danger)}
+.type-complete{background:var(--color-background-warning);color:var(--color-text-warning)}
+.type-suggest{background:var(--color-background-info);color:var(--color-text-info)}
+.issue-text{font-size:13px;line-height:1.6}
+.issue-detail{font-size:12px;color:var(--color-text-secondary);margin-top:4px;font-family:var(--font-mono)}
+.issue-actions{display:flex;gap:6px;margin-top:8px}
+.fix-btn{font-size:11px;padding:4px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);cursor:pointer}
+.fix-btn:hover{background:var(--color-background-secondary)}
+.fix-btn-auto{background:var(--color-background-success);color:var(--color-text-success);border-color:transparent}
+.ignore-btn{font-size:11px;padding:4px 10px;border:none;background:transparent;color:var(--color-text-tertiary);cursor:pointer}
+.pass-list{display:flex;flex-direction:column;gap:4px}
+.pass-item{font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:6px;padding:4px 0}
+.pass-check{width:14px;height:14px;border-radius:50%;background:var(--color-background-success);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pass-check::after{content:'';display:block;width:6px;height:3px;border-left:1.5px solid var(--color-text-success);border-bottom:1.5px solid var(--color-text-success);transform:rotate(-45deg);margin-top:-1px}
+.bottom-bar{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary)}
+.btn-s{font-size:12px;padding:6px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);cursor:pointer}
+.btn-p{font-size:12px;padding:6px 14px;border:none;border-radius:var(--border-radius-md);background:var(--color-text-primary);color:var(--color-background-primary);cursor:pointer}
+</style>
+<div class="w">
+<div class="back">← 返回图谱视图</div>
+
+<div class="hd">
+<div class="hd-name">审核报告</div>
+<div class="hd-badge hd-issues">3 项需处理</div>
+</div>
+
+<div class="summary">
+<div class="sum-card"><div class="sum-num" style="color:var(--color-text-success)">24</div><div class="sum-label">通过</div></div>
+<div class="sum-card"><div class="sum-num" style="color:var(--color-text-danger)">1</div><div class="sum-label">一致性</div></div>
+<div class="sum-card"><div class="sum-num" style="color:var(--color-text-warning)">1</div><div class="sum-label">完整性</div></div>
+<div class="sum-card"><div class="sum-num" style="color:var(--color-text-info)">1</div><div class="sum-label">建议</div></div>
+</div>
+
+<div class="section">
+<div class="sec-hd"><div class="sec-dot" style="background:var(--color-text-danger)"></div>一致性问题</div>
+<div class="issue-list">
+<div class="issue">
+<div class="issue-top">
+<span class="issue-type type-consist">一致性</span>
+</div>
+<div class="issue-text">规则 R05 的条件引用了 equipment_id，但出入库记录类中该字段名为 related_equipment_id</div>
+<div class="issue-detail">R05.condition: "equipment=same" → stock_movement 中无 equipment 字段，应为 related_equipment_id 或通过 consumed_by 关系遍历</div>
+<div class="issue-actions">
+<button class="fix-btn fix-btn-auto" onclick="sendPrompt('自动修复R05的字段引用')">自动修复</button>
+<button class="ignore-btn">忽略</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="sec-hd"><div class="sec-dot" style="background:var(--color-text-warning)"></div>完整性问题</div>
+<div class="issue-list">
+<div class="issue">
+<div class="issue-top">
+<span class="issue-type type-complete">完整性</span>
+</div>
+<div class="issue-text">采购单类的 status 属性有6个枚举值，但只有动作 A04（生成请购）和 A05（提交采购）覆盖了 draft→submitted 的转换。in_transit→arrived、submitted→cancelled 的状态转换没有对应动作</div>
+<div class="issue-detail">缺失动作：确认到货（in_transit→arrived）、取消采购（*→cancelled）</div>
+<div class="issue-actions">
+<button class="fix-btn" onclick="sendPrompt('为采购单补充缺失的状态转换动作')">生成缺失动作</button>
+<button class="ignore-btn">标记为后续版本</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="sec-hd"><div class="sec-dot" style="background:var(--color-text-info)"></div>优化建议</div>
+<div class="issue-list">
+<div class="issue">
+<div class="issue-top">
+<span class="issue-type type-suggest">建议</span>
+</div>
+<div class="issue-text">库存头寸的 monthly_avg_consumption 属性标记为 graph_sync=false，但 Agent-9a（日频优化）在全量扫描时需要按此属性过滤高消耗备件。建议改为 graph_sync=true 以提升遍历效率</div>
+<div class="issue-actions">
+<button class="fix-btn fix-btn-auto" onclick="sendPrompt('将monthly_avg_consumption改为图谱同步')">接受建议</button>
+<button class="ignore-btn">保持不变</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="sec-hd"><div class="sec-dot" style="background:var(--color-text-success)"></div>通过项（24项）</div>
+<div class="pass-list">
+<div class="pass-item"><div class="pass-check"></div>所有关系的 from/to 引用了已定义的类</div>
+<div class="pass-item"><div class="pass-check"></div>所有派生属性的公式引用了存在的属性和关系</div>
+<div class="pass-item"><div class="pass-check"></div>所有规则条件引用了存在的属性（R05除外）</div>
+<div class="pass-item"><div class="pass-check"></div>第一公民（库存头寸）有17个属性，覆盖核心业务需求</div>
+<div class="pass-item"><div class="pass-check"></div>无孤立类（所有类至少有一个关系）</div>
+<div class="pass-item"><div class="pass-check"></div>图谱同步标记合理（8/17个属性同步）</div>
+<div class="pass-item"><div class="pass-check"></div>命名规范：所有ID使用snake_case</div>
+<div class="pass-item"><div class="pass-check"></div>无属性重复定义</div>
+<div class="pass-item"><div class="pass-check"></div>... 其余16项均通过</div>
+</div>
+</div>
+
+<div class="bottom-bar">
+<button class="btn-s" onclick="sendPrompt('重新运行审核')">重新审核</button>
+<button class="btn-p" onclick="sendPrompt('所有问题已处理，发布本体')">全部处理完毕，发布</button>
+</div>
+</div>

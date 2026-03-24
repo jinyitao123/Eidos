@@ -1,0 +1,69 @@
+.back { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; margin-bottom: 12px; }
+.header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.title { font-size: 18px; font-weight: 500; }
+.badge { font-size: 11px; padding: 2px 10px; border-radius: 99px; font-weight: 500; background: var(--color-success-tint); color: var(--color-success-tone); }
+.subtitle { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 16px; }
+
+.versionBar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); margin-bottom: 16px; font-size: 12px; background: var(--color-bg-secondary); }
+.verLabel { color: var(--color-text-tertiary); }
+.verVal { font-weight: 500; }
+.verArrow { color: var(--color-text-tertiary); }
+.verDiff { color: var(--color-info-tone); }
+
+.pipeline { display: flex; flex-direction: column; margin-bottom: 20px; }
+
+.pipeStep { display: flex; align-items: stretch; }
+.pipeTrack { width: 32px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.pipeDot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 14px; }
+.pipeDotDone { background: var(--color-success-tone); }
+.pipeLine { flex: 1; width: 2px; background: var(--color-success-tone); margin: 4px 0; }
+.pipeLineDone { background: var(--color-success-tone); }
+
+.pipeContent { flex: 1; padding: 8px 0 16px 8px; }
+.pipeName { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.okTag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-success-tint); color: var(--color-success-tone); margin-left: 6px; }
+.diffTag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-info-tint); color: var(--color-info-tone); margin-left: 6px; }
+
+.pipeOutput { margin-top: 6px; padding: 8px 10px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); font-size: 11px; font-family: var(--font-mono); color: var(--color-text-secondary); line-height: 1.8; background: var(--color-bg-primary); }
+.pipeStats { margin-top: 6px; font-size: 11px; color: var(--color-text-tertiary); }
+
+.bottomBar { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 0.5px solid var(--color-border-default); }
+.bottomLeft { font-size: 12px; color: var(--color-success-tone); }
+.bottomRight { display: flex; gap: 10px; }
+.btnSecondary { font-size: 12px; padding: 6px 14px; border: 0.5px solid var(--color-border-hover); border-radius: var(--radius-md); background: transparent; color: var(--color-text-primary); cursor: pointer; }
+.btnPrimary { font-size: 12px; padding: 6px 14px; border: none; border-radius: var(--radius-md); background: var(--color-text-primary); color: var(--color-bg-primary); cursor: pointer; }
+.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.loading { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }
+.empty { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }
+
+.runBtn { font-size: 13px; padding: 8px 20px; border: none; border-radius: var(--radius-md); background: var(--color-text-primary); color: var(--color-bg-primary); cursor: pointer; margin-bottom: 16px; }
+.runBtn:hover { opacity: 0.9; }
+
+.pipeDotRunning { background: var(--color-info-tone); animation: pulse 1s infinite; }
+.pipeDotError { background: var(--color-danger-tone); }
+.runningTag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-info-tint); color: var(--color-info-tone); margin-left: 6px; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.badgeError { background: var(--color-danger-tint); color: var(--color-danger-tone); }
+.errorTag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-danger-tint); color: var(--color-danger-tone); margin-left: 6px; }
+.pipeError { margin-top: 4px; font-size: 11px; color: var(--color-danger-tone); }
+.bottomError { color: var(--color-danger-tone); }
+
+.viewBtn { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-secondary); margin-left: 6px; cursor: pointer; }
+.viewBtn:hover { background: var(--color-border-default); }
+
+.logSection { margin-bottom: 16px; }
+.logSummary { font-size: 12px; color: var(--color-text-secondary); cursor: pointer; padding: 6px 0; }
+.logContent { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-tertiary); background: var(--color-bg-secondary); padding: 10px 12px; border-radius: var(--radius-md); overflow-x: auto; max-height: 200px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap; }
+
+.fileViewer { width: 700px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; }
+.fileHeader { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 0.5px solid var(--color-border-default); margin-bottom: 8px; }
+.fileName { font-size: 13px; font-weight: 500; font-family: var(--font-mono); }
+.fileClose { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-text-tertiary); }
+.fileTabs { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.fileTab { font-size: 11px; padding: 2px 8px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-sm); background: transparent; cursor: pointer; color: var(--color-text-secondary); font-family: var(--font-mono); }
+.fileTab:hover { background: var(--color-bg-secondary); }
+.fileTabActive { background: var(--color-text-primary); color: var(--color-bg-primary); border-color: transparent; }
+.fileContent { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-primary); background: var(--color-bg-secondary); padding: 12px 14px; border-radius: var(--radius-md); overflow: auto; flex: 1; line-height: 1.6; white-space: pre; tab-size: 2; }

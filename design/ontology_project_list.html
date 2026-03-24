@@ -1,0 +1,113 @@
+<style>
+*{box-sizing:border-box;margin:0}
+.w{font-family:var(--font-sans);color:var(--color-text-primary);max-width:680px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.top h2{font-size:18px;font-weight:500}
+.add-btn{font-size:13px;padding:8px 16px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);cursor:pointer}
+.add-btn:hover{background:var(--color-background-secondary)}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px 20px;background:var(--color-background-primary);cursor:pointer}
+.card:hover{border-color:var(--color-border-secondary)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.card-left{display:flex;align-items:center;gap:10px}
+.icon-box{width:40px;height:40px;border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500}
+.card-name{font-size:15px;font-weight:500}
+.card-desc{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:500}
+.badge-pub{background:var(--color-background-success);color:var(--color-text-success)}
+.badge-draft{background:var(--color-background-warning);color:var(--color-text-warning)}
+.badge-build{background:var(--color-background-info);color:var(--color-text-info)}
+.stats{display:flex;gap:20px;font-size:12px;color:var(--color-text-secondary);margin-top:10px}
+.stat-item{display:flex;align-items:center;gap:4px}
+.stat-num{font-weight:500;color:var(--color-text-primary)}
+.card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tag{padding:2px 8px;border-radius:4px;font-size:11px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.card-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);font-size:11px;color:var(--color-text-tertiary)}
+.card.dashed{border-style:dashed;opacity:0.6}
+</style>
+<div class="w">
+<div class="top">
+<h2>本体管理</h2>
+<button class="add-btn" onclick="sendPrompt('创建一个新的本体项目')">+ 新建本体</button>
+</div>
+
+<div class="cards">
+
+<div class="card" onclick="sendPrompt('进入备件管理本体的图谱审核视图')">
+<div class="card-top">
+<div class="card-left">
+<div class="icon-box" style="background:#FAECE7;color:#993C1D">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="6" y1="7" x2="10" y2="10"/><line x1="18" y1="7" x2="14" y2="10"/><line x1="6" y1="17" x2="10" y2="14"/><line x1="18" y1="17" x2="14" y2="14"/></svg>
+</div>
+<div>
+<div class="card-name">备件管理</div>
+<div class="card-desc">永祥科技（通威灯塔工厂）· 库存进销存管控</div>
+</div>
+</div>
+<span class="badge badge-pub">v1.0 已发布</span>
+</div>
+<div class="stats">
+<div class="stat-item">类 <span class="stat-num">7</span></div>
+<div class="stat-item">关系 <span class="stat-num">9</span></div>
+<div class="stat-item">规则 <span class="stat-num">8</span></div>
+<div class="stat-item">动作 <span class="stat-num">8</span></div>
+<div class="stat-item">MCP工具 <span class="stat-num">18</span></div>
+</div>
+<div class="card-tags">
+<span class="tag">第一公民：库存头寸</span>
+<span class="tag">图谱：3层单图</span>
+<span class="tag">Agent：7个绑定</span>
+</div>
+<div class="card-bottom">
+<span>发布于 2026-03-15 · 最后编辑 2026-03-19</span>
+<span>数据源：通威数据中台 + 扫码系统</span>
+</div>
+</div>
+
+<div class="card" onclick="sendPrompt('进入设备运维本体的Agent构建对话')">
+<div class="card-top">
+<div class="card-left">
+<div class="icon-box" style="background:#E1F5EE;color:#0F6E56">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="6" y1="7" x2="10" y2="10"/><line x1="18" y1="7" x2="14" y2="10"/><line x1="6" y1="17" x2="10" y2="14"/><line x1="18" y1="17" x2="14" y2="14"/></svg>
+</div>
+<div>
+<div class="card-name">设备运维</div>
+<div class="card-desc">永祥科技 · 智能排障与预防性维护</div>
+</div>
+</div>
+<span class="badge badge-build">构建中</span>
+</div>
+<div class="stats">
+<div class="stat-item">类 <span class="stat-num">5</span></div>
+<div class="stat-item">关系 <span class="stat-num">4</span></div>
+<div class="stat-item">规则 <span class="stat-num">—</span></div>
+<div class="stat-item">动作 <span class="stat-num">—</span></div>
+</div>
+<div class="card-tags">
+<span class="tag">第一公民：维修工单</span>
+<span class="tag">Agent构建进度：架构师阶段</span>
+</div>
+<div class="card-bottom">
+<span>创建于 2026-03-20 · 调研文档已上传</span>
+<span>共享类：设备（来自备件管理）</span>
+</div>
+</div>
+
+<div class="card dashed">
+<div class="card-top">
+<div class="card-left">
+<div class="icon-box" style="background:var(--color-background-secondary);color:var(--color-text-tertiary)">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><line x1="6" y1="7" x2="10" y2="10"/><line x1="18" y1="7" x2="14" y2="10"/></svg>
+</div>
+<div>
+<div class="card-name">质量管理</div>
+<div class="card-desc">待调研 · 预计2026年Q2启动</div>
+</div>
+</div>
+<span class="badge" style="background:var(--color-background-secondary);color:var(--color-text-tertiary)">待启动</span>
+</div>
+<div class="card-bottom"><span>等待业务线需求调研完成</span></div>
+</div>
+
+</div>
+</div>

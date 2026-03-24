@@ -1,0 +1,54 @@
+.container { display: flex; flex-direction: column; height: calc(100vh - 52px); }
+.loading { text-align: center; padding: 40px; color: var(--color-text-tertiary); font-size: 13px; }
+
+.topBar { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 0.5px solid var(--color-border-default); margin-bottom: 12px; }
+.back { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
+.projectTitle { font-size: 15px; font-weight: 500; }
+
+/* Progress bar */
+.progressBar { display: flex; align-items: center; margin-bottom: 16px; gap: 0; }
+.progressStage { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; position: relative; }
+.progressDot { width: 12px; height: 12px; border-radius: 50%; background: var(--color-bg-tertiary); border: 1.5px solid var(--color-border-hover); flex-shrink: 0; }
+.progressCurrent .progressDot { border-width: 2.5px; }
+.progressDone .progressDot { border: none; }
+.progressLabel { font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; }
+.progressCurrent .progressLabel { color: var(--color-text-primary); font-weight: 500; }
+.progressDone .progressLabel { color: var(--color-text-secondary); }
+.progressLine { flex: 1; height: 2px; background: var(--color-border-default); min-width: 20px; margin: 0 4px; }
+.progressLineDone { background: var(--color-success-tone); }
+
+/* Chat area */
+.chatArea { flex: 1; overflow-y: auto; padding: 8px 0; display: flex; flex-direction: column; gap: 12px; }
+
+.emptyChat { text-align: center; padding: 60px 20px; color: var(--color-text-tertiary); font-size: 13px; }
+.uploadBtn { margin-top: 12px; font-size: 13px; padding: 8px 20px; border: 1px dashed var(--color-border-hover); border-radius: var(--radius-md); background: transparent; color: var(--color-text-primary); cursor: pointer; }
+.uploadBtn:hover { background: var(--color-bg-secondary); }
+
+.message { max-width: 85%; padding: 10px 14px; border-radius: var(--radius-lg); font-size: 13px; line-height: 1.6; }
+.messageUser { align-self: flex-end; background: var(--color-bg-secondary); color: var(--color-text-primary); }
+.messageAgent { align-self: flex-start; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-default); }
+
+.agentHeader { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.agentAvatar { width: 20px; height: 20px; border-radius: 50%; color: white; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.agentName { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); }
+
+.messageContent { white-space: pre-wrap; word-break: break-word; }
+
+/* Bottom bar */
+.bottomBar { border-top: 0.5px solid var(--color-border-default); padding-top: 12px; }
+.confirmBtn { font-size: 12px; padding: 6px 16px; border: none; border-radius: var(--radius-md); background: var(--color-success-tint); color: var(--color-success-tone); cursor: pointer; margin-bottom: 8px; font-weight: 500; }
+.confirmBtn:hover { opacity: 0.9; }
+
+.inputRow { display: flex; gap: 8px; align-items: center; }
+.attachBtn { width: 32px; height: 32px; border: none; background: transparent; cursor: pointer; font-size: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); }
+.attachBtn:hover { background: var(--color-bg-secondary); }
+
+.chatInput { flex: 1; font-size: 13px; padding: 8px 12px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); outline: none; }
+.chatInput:focus { border-color: var(--color-border-hover); }
+.chatInput:disabled { opacity: 0.5; }
+
+.sendBtn { font-size: 12px; padding: 8px 16px; border: none; border-radius: var(--radius-md); background: var(--color-text-primary); color: var(--color-bg-primary); cursor: pointer; flex-shrink: 0; }
+.sendBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.thinking { color: var(--color-text-tertiary); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }

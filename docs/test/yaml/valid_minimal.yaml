@@ -1,0 +1,16 @@
+# 测试用例：最小有效本体
+# 预期：解析成功，只有 1 个 class，0 个 relationship
+id: minimal_test
+name: 最小测试
+version: "1.0"
+
+classes:
+  - id: item
+    name: 条目
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+        required: true

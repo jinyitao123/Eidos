@@ -1,0 +1,388 @@
+{
+  "description": "MCP 工具测试用例 - 所有 22 个工具的请求与预期响应结构",
+  "base_url": "http://localhost:9091/",
+  "protocol": "JSON-RPC 2.0",
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "name": "list_projects - 列出所有项目",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": { "name": "list_projects", "arguments": {} }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "content_type": "json",
+        "response_contains": ["projects"]
+      }
+    },
+    {
+      "id": "TC-002",
+      "name": "list_projects - 按状态过滤",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": { "name": "list_projects", "arguments": { "status": "published" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-003",
+      "name": "create_project - 创建新项目",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": { "name": "create_project", "arguments": { "name": "测试项目", "description": "自动化测试创建的项目" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["id"]
+      },
+      "note": "返回的 id 供后续测试使用"
+    },
+    {
+      "id": "TC-004",
+      "name": "get_project - 获取项目详情",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": { "name": "get_project", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["name", "status", "current_stage"]
+      }
+    },
+    {
+      "id": "TC-005",
+      "name": "get_project - 不存在的项目",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "tools/call",
+        "params": { "name": "get_project", "arguments": { "project_id": "00000000-0000-0000-0000-000000000000" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": true
+      }
+    },
+    {
+      "id": "TC-006",
+      "name": "validate_yaml - 有效 YAML",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "tools/call",
+        "params": {
+          "name": "validate_yaml",
+          "arguments": {
+            "yaml_content": "id: test\nname: Test\nversion: '1.0'\nclasses:\n  - id: item\n    name: Item\n    first_citizen: true\n    phase: alpha\n    attributes:\n      - id: name\n        name: Name\n        type: string\n        required: true",
+            "check_level": "full"
+          }
+        }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["valid"]
+      }
+    },
+    {
+      "id": "TC-007",
+      "name": "validate_yaml - 无效 YAML (缺少 first_citizen)",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": {
+          "name": "validate_yaml",
+          "arguments": {
+            "yaml_content": "id: test\nname: Test\nversion: '1.0'\nclasses:\n  - id: item\n    name: Item\n    phase: alpha\n    attributes:\n      - id: name\n        name: Name\n        type: string",
+            "check_level": "semantic"
+          }
+        }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_should_indicate": "missing first_citizen or validation warning"
+      }
+    },
+    {
+      "id": "TC-008",
+      "name": "validate_yaml - 格式错误 (非 snake_case ID)",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 8,
+        "method": "tools/call",
+        "params": {
+          "name": "validate_yaml",
+          "arguments": {
+            "yaml_content": "id: test\nname: Test\nversion: '1.0'\nclasses:\n  - id: BadName\n    name: Bad\n    first_citizen: true\n    phase: alpha\n    attributes:\n      - id: MyField\n        name: F\n        type: string",
+            "check_level": "format"
+          }
+        }
+      },
+      "expected": {
+        "has_result": true,
+        "response_should_indicate": "format error about non-snake_case IDs"
+      }
+    },
+    {
+      "id": "TC-009",
+      "name": "save_output - 保存阶段输出",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "method": "tools/call",
+        "params": {
+          "name": "save_output",
+          "arguments": {
+            "project_id": "{{TC-003.id}}",
+            "stage": "scene_analysis",
+            "content": "场景分析结果:\n- 业务场景1: 测试场景\n- 关键实体: 测试实体"
+          }
+        }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-010",
+      "name": "read_scene_analysis - 读取场景分析",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": { "name": "read_scene_analysis", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["场景分析"]
+      }
+    },
+    {
+      "id": "TC-011",
+      "name": "save_output - 保存本体结构",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+          "name": "save_output",
+          "arguments": {
+            "project_id": "{{TC-003.id}}",
+            "stage": "ontology_structure",
+            "content": "classes:\n  - id: test_item\n    name: 测试条目\n    first_citizen: true\n    phase: alpha\n    attributes:\n      - id: name\n        name: 名称\n        type: string\n        required: true\nrelationships: []"
+          }
+        }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-012",
+      "name": "read_ontology_structure - 读取本体结构",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "tools/call",
+        "params": { "name": "read_ontology_structure", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["test_item"]
+      }
+    },
+    {
+      "id": "TC-013",
+      "name": "read_full_ontology_yaml - 读取完整 YAML",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "method": "tools/call",
+        "params": { "name": "read_full_ontology_yaml", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-014",
+      "name": "query_published_ontologies - 查询已发布本体",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "method": "tools/call",
+        "params": { "name": "query_published_ontologies", "arguments": {} }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-015",
+      "name": "run_pipeline - 执行代码生成",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 15,
+        "method": "tools/call",
+        "params": { "name": "run_pipeline", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["success", "steps"]
+      },
+      "note": "需要 pipeline binary 在 PATH 中"
+    },
+    {
+      "id": "TC-016",
+      "name": "run_pipeline - 不存在的项目",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 16,
+        "method": "tools/call",
+        "params": { "name": "run_pipeline", "arguments": { "project_id": "00000000-0000-0000-0000-000000000000" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": true,
+        "error_contains": "no ontology YAML found"
+      }
+    },
+    {
+      "id": "TC-017",
+      "name": "graph_stats - 图谱统计",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 17,
+        "method": "tools/call",
+        "params": { "name": "graph_stats", "arguments": {} }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["total_nodes", "total_relationships", "by_label"]
+      }
+    },
+    {
+      "id": "TC-018",
+      "name": "graph_query_nodes - 按标签查询节点",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 18,
+        "method": "tools/call",
+        "params": { "name": "graph_query_nodes", "arguments": { "label": "SparePart", "limit": 5 } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["nodes"],
+        "note": "需要 Neo4j 中有 SparePart 数据"
+      }
+    },
+    {
+      "id": "TC-019",
+      "name": "graph_query_neighbors - 查询邻居节点",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "method": "tools/call",
+        "params": { "name": "graph_query_neighbors", "arguments": { "node_id": "{{from TC-018 first node}}", "depth": 1 } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false,
+        "response_contains": ["nodes", "edges"]
+      }
+    },
+    {
+      "id": "TC-020",
+      "name": "graph_traverse - 图遍历",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "method": "tools/call",
+        "params": { "name": "graph_traverse", "arguments": { "start_node_id": "{{node_id}}", "max_depth": 2 } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-021",
+      "name": "graph_aggregate - 聚合查询",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 21,
+        "method": "tools/call",
+        "params": { "name": "graph_aggregate", "arguments": { "label": "InventoryPosition", "group_by": "status" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      }
+    },
+    {
+      "id": "TC-022",
+      "name": "delete_project - 删除项目",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 22,
+        "method": "tools/call",
+        "params": { "name": "delete_project", "arguments": { "project_id": "{{TC-003.id}}" } }
+      },
+      "expected": {
+        "has_result": true,
+        "is_error": false
+      },
+      "note": "最后执行，清理测试数据"
+    },
+    {
+      "id": "TC-023",
+      "name": "tools/list - 列出所有工具",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "method": "tools/list",
+        "params": {}
+      },
+      "expected": {
+        "has_result": true,
+        "tool_count": 22,
+        "required_tools": [
+          "list_projects", "get_project", "create_project", "delete_project",
+          "read_document", "query_published_ontologies", "import_class",
+          "validate_yaml", "read_scene_analysis", "read_ontology_structure",
+          "read_full_ontology_yaml", "read_review_report",
+          "query_agent_configs", "validate_rule_references",
+          "save_output", "run_pipeline",
+          "graph_query_nodes", "graph_query_neighbors", "graph_traverse",
+          "graph_shortest_path", "graph_aggregate", "graph_stats"
+        ]
+      }
+    }
+  ]
+}

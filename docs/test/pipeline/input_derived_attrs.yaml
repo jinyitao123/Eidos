@@ -1,0 +1,132 @@
+# Pipeline 测试：派生属性公式覆盖
+# 验证所有公式类型：同类引用、跨关系引用、聚合、时间计算
+id: inventory_analytics
+name: 库存分析
+version: "1.0"
+
+classes:
+  - id: product
+    name: 产品
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: name
+        name: 产品名
+        type: string
+        required: true
+        graph_sync: true
+      - id: sku
+        name: SKU
+        type: string
+        required: true
+        unique: true
+      - id: unit_price
+        name: 单价
+        type: decimal
+        required: true
+      - id: cost_price
+        name: 成本价
+        type: decimal
+        required: true
+      # 同类属性引用
+      - id: profit_margin
+        name: 利润率
+        type: decimal
+        derived: "(unit_price - cost_price) / unit_price * 100"
+      # 跨关系聚合 SUM
+      - id: total_stock
+        name: 总库存
+        type: integer
+        derived: "SUM([stored_in].quantity)"
+      # 跨关系聚合 AVG
+      - id: avg_warehouse_qty
+        name: 平均仓库库存
+        type: decimal
+        derived: "AVG([stored_in].quantity)"
+      # 跨关系聚合 COUNT
+      - id: warehouse_count
+        name: 分布仓库数
+        type: integer
+        derived: "COUNT([stored_in])"
+      # 跨关系引用
+      - id: total_value
+        name: 总库存价值
+        type: decimal
+        derived: "SUM([stored_in].quantity) * unit_price"
+
+  - id: warehouse_stock
+    name: 仓库库存
+    phase: alpha
+    attributes:
+      - id: quantity
+        name: 数量
+        type: integer
+        required: true
+      - id: min_quantity
+        name: 最低库存
+        type: integer
+        configurable: true
+        default: 10
+      # 同类属性引用
+      - id: stock_gap
+        name: 库存缺口
+        type: integer
+        derived: "min_quantity - quantity"
+      - id: is_low_stock
+        name: 是否低库存
+        type: boolean
+        derived: "quantity < min_quantity"
+      - id: stock_value
+        name: 库存金额
+        type: decimal
+        derived: "quantity * [stored_in].unit_price"
+      - id: last_replenish_date
+        name: 最近补货日期
+        type: date
+      # 时间计算 DATEDIFF
+      - id: days_since_replenish
+        name: 距上次补货天数
+        type: integer
+        derived: "DATEDIFF(days, last_replenish_date, NOW())"
+
+  - id: sales_record
+    name: 销售记录
+    phase: alpha
+    attributes:
+      - id: quantity_sold
+        name: 销售数量
+        type: integer
+        required: true
+      - id: sale_price
+        name: 销售单价
+        type: decimal
+        required: true
+      - id: sale_date
+        name: 销售日期
+        type: date
+        required: true
+      # 同类引用
+      - id: sale_amount
+        name: 销售金额
+        type: decimal
+        derived: "quantity_sold * sale_price"
+      # 时间计算
+      - id: days_ago
+        name: 距今天数
+        type: integer
+        derived: "DATEDIFF(days, sale_date, NOW())"
+
+relationships:
+  - id: stored_in
+    name: 存储于
+    from: warehouse_stock
+    to: product
+    cardinality: many_to_one
+    required: true
+
+  - id: sold
+    name: 销售了
+    from: sales_record
+    to: product
+    cardinality: many_to_one
+    required: true

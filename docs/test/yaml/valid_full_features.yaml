@@ -1,0 +1,512 @@
+# 测试用例：完整特性覆盖
+# 覆盖：rules, actions, functions, graph_config, connector_hints, edge_attributes, unique_constraints
+id: equipment_maintenance
+name: 设备维护管理
+version: "1.0"
+description: 工厂设备维护与工单管理本体
+
+classes:
+  - id: equipment
+    name: 设备
+    first_citizen: true
+    phase: alpha
+    imported_from: spare_parts
+    attributes:
+      - id: code
+        name: 设备编号
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+      - id: name
+        name: 设备名称
+        type: string
+        required: true
+        graph_sync: true
+      - id: equipment_type
+        name: 设备类型
+        type: enum
+        required: true
+        enum_values: [PRODUCTION, UTILITY, SAFETY, TRANSPORT]
+        graph_sync: true
+      - id: status
+        name: 运行状态
+        type: enum
+        required: true
+        enum_values: [RUNNING, STOPPED, MAINTENANCE, DECOMMISSIONED]
+        graph_sync: true
+      - id: location
+        name: 安装位置
+        type: string
+        graph_sync: true
+      - id: install_date
+        name: 安装日期
+        type: date
+      - id: last_maintenance_date
+        name: 最近维护日期
+        type: date
+      - id: next_maintenance_due
+        name: 下次维护日期
+        type: date
+        graph_sync: true
+      - id: total_downtime_hours
+        name: 累计停机时长
+        type: decimal
+        derived: "SUM([has_work_order].downtime_hours)"
+        unit: hours
+      - id: mtbf
+        name: 平均无故障间隔
+        type: decimal
+        derived: "calc_mtbf(equipment_id)"
+        unit: hours
+      - id: created_at
+        name: 创建时间
+        type: datetime
+      - id: updated_at
+        name: 更新时间
+        type: datetime
+
+  - id: work_order
+    name: 工单
+    phase: alpha
+    attributes:
+      - id: order_no
+        name: 工单号
+        type: string
+        required: true
+        unique: true
+      - id: work_type
+        name: 工单类型
+        type: enum
+        required: true
+        enum_values: [PREVENTIVE, CORRECTIVE, EMERGENCY, INSPECTION]
+        graph_sync: true
+      - id: priority
+        name: 优先级
+        type: enum
+        required: true
+        enum_values: [LOW, MEDIUM, HIGH, CRITICAL]
+        graph_sync: true
+      - id: status
+        name: 状态
+        type: enum
+        required: true
+        enum_values: [OPEN, IN_PROGRESS, PENDING_PARTS, COMPLETED, CANCELLED]
+        graph_sync: true
+      - id: description
+        name: 故障描述
+        type: text
+      - id: downtime_hours
+        name: 停机时长
+        type: decimal
+        unit: hours
+      - id: repair_cost
+        name: 维修费用
+        type: decimal
+        unit: CNY
+      - id: started_at
+        name: 开始时间
+        type: datetime
+      - id: completed_at
+        name: 完成时间
+        type: datetime
+      - id: resolution
+        name: 解决方案
+        type: text
+      - id: created_at
+        name: 创建时间
+        type: datetime
+
+  - id: technician
+    name: 技术员
+    phase: alpha
+    attributes:
+      - id: name
+        name: 姓名
+        type: string
+        required: true
+      - id: employee_id
+        name: 工号
+        type: string
+        required: true
+        unique: true
+      - id: skill_level
+        name: 技能等级
+        type: enum
+        enum_values: [JUNIOR, SENIOR, EXPERT]
+        graph_sync: true
+      - id: specialization
+        name: 专业方向
+        type: string
+      - id: active_work_orders
+        name: 当前工单数
+        type: integer
+        derived: "COUNT([assigned_to] WHERE status IN ('OPEN','IN_PROGRESS'))"
+
+  - id: spare_part_usage
+    name: 备件使用记录
+    phase: alpha
+    attributes:
+      - id: quantity
+        name: 使用数量
+        type: integer
+        required: true
+      - id: unit_cost
+        name: 单位成本
+        type: decimal
+        unit: CNY
+      - id: total_cost
+        name: 总成本
+        type: decimal
+        derived: "quantity * unit_cost"
+      - id: used_at
+        name: 使用时间
+        type: datetime
+        required: true
+
+  - id: maintenance_schedule
+    name: 维护计划
+    phase: beta
+    attributes:
+      - id: schedule_name
+        name: 计划名称
+        type: string
+        required: true
+      - id: frequency_days
+        name: 频率(天)
+        type: integer
+        required: true
+        configurable: true
+      - id: last_executed
+        name: 上次执行
+        type: datetime
+      - id: next_execution
+        name: 下次执行
+        type: datetime
+        derived: "DATEADD(days, frequency_days, last_executed)"
+      - id: is_active
+        name: 是否启用
+        type: boolean
+        configurable: true
+
+  - id: decision_log
+    name: 决策日志
+    phase: beta
+    attributes:
+      - id: decision_type
+        name: 决策类型
+        type: string
+      - id: related_action
+        name: 关联操作
+        type: string
+      - id: related_entity
+        name: 关联实体
+        type: string
+      - id: original_suggestion
+        name: 原始建议
+        type: text
+      - id: final_decision
+        name: 最终决定
+        type: text
+      - id: decided_by
+        name: 决策人
+        type: string
+      - id: decided_at
+        name: 决策时间
+        type: datetime
+      - id: reason
+        name: 决策原因
+        type: text
+    unique_constraints:
+      - columns: [related_action, related_entity, decided_at]
+
+relationships:
+  - id: has_work_order
+    name: 产生工单
+    from: equipment
+    to: work_order
+    cardinality: one_to_many
+
+  - id: assigned_to
+    name: 分配给
+    from: work_order
+    to: technician
+    cardinality: many_to_one
+    description: 工单分配给技术员
+
+  - id: uses_part
+    name: 使用备件
+    from: work_order
+    to: spare_part_usage
+    cardinality: one_to_many
+
+  - id: scheduled_for
+    name: 定期维护
+    from: maintenance_schedule
+    to: equipment
+    cardinality: many_to_one
+    required: true
+
+  - id: related_equipment
+    name: 关联设备
+    from: spare_part_usage
+    to: equipment
+    cardinality: many_to_one
+
+  - id: decided_on
+    name: 关联决策
+    from: decision_log
+    to: work_order
+    cardinality: many_to_one
+
+  - id: collaborates_with
+    name: 协作
+    from: technician
+    to: technician
+    cardinality: many_to_many
+    description: 技术员之间的协作关系
+    edge_attributes:
+      - id: collaboration_type
+        name: 协作类型
+        type: string
+        enum_values: [MENTORING, PEER, SPECIALIST]
+      - id: frequency
+        name: 协作频率
+        type: string
+        description: 协作频率描述
+
+rules:
+  - id: R01
+    name: 紧急工单自动升级
+    description: 紧急工单超过4小时未处理自动升级优先级
+    phase: alpha
+    severity: critical
+    trigger:
+      type: schedule
+      source: []
+      cron: "*/30 * * * *"
+    condition:
+      entity: work_order
+      expression: "work_type = 'EMERGENCY' AND status = 'OPEN' AND DATEDIFF(hours, created_at, NOW()) > 4"
+    action:
+      type: set_field
+      target: work_order.priority
+      value: CRITICAL
+      notify: maintenance_manager
+      message_template: "紧急工单 {{order_no}} 超时未处理，已自动升级为CRITICAL"
+
+  - id: R02
+    name: 预防性维护提醒
+    description: 维护计划到期前3天发送提醒
+    phase: beta
+    severity: warning
+    trigger:
+      type: schedule
+      source: []
+      cron: "0 8 * * *"
+    condition:
+      entity: maintenance_schedule
+      expression: "is_active = true AND DATEDIFF(days, NOW(), next_execution) <= 3"
+    action:
+      type: create_entity
+      target: work_order
+      notify: assigned_technician
+      message_template: "设备 {{equipment.name}} 的定期维护即将到期，请安排工单"
+
+  - id: R03
+    name: 工单完成后更新设备状态
+    description: 工单完成时自动更新设备维护日期
+    phase: alpha
+    severity: info
+    trigger:
+      type: after_action
+      source: [A02]
+    condition:
+      entity: equipment
+      expression: "true"
+    action:
+      type: set_field
+      target: equipment.last_maintenance_date
+      value: "NOW()"
+
+  - id: R04
+    name: 高成本维修拦截
+    description: 维修费用超过设备价值30%时需审批
+    phase: alpha
+    severity: warning
+    trigger:
+      type: before_action
+      source: "A02"
+    condition:
+      entity: work_order
+      expression: "repair_cost > equipment.value * 0.3"
+    action:
+      type: block
+      target: work_order
+      notify: plant_manager
+      message_template: "工单 {{order_no}} 维修费用 {{repair_cost}} 超过设备价值30%，需要审批"
+    params:
+      - id: cost_threshold_ratio
+        name: 费用阈值比例
+        type: decimal
+        default: 0.3
+        configurable: true
+
+actions:
+  - id: A01
+    name: 创建工单
+    description: 创建新维修/维护工单
+    phase: alpha
+    params:
+      - id: equipment_id
+        name: 设备ID
+        type: string
+        required: true
+      - id: work_type
+        name: 工单类型
+        type: string
+        required: true
+      - id: priority
+        name: 优先级
+        type: string
+        required: true
+      - id: description
+        name: 故障描述
+        type: string
+    writes:
+      - target: work_order
+        operation: insert
+        set:
+          status: "OPEN"
+    triggers_after: [R03]
+    permission:
+      roles: [operator, technician, manager]
+      agents: [maintenance-agent]
+    decision_log: false
+
+  - id: A02
+    name: 完成工单
+    description: 标记工单为已完成
+    phase: alpha
+    params:
+      - id: work_order_id
+        name: 工单ID
+        type: string
+        required: true
+      - id: resolution
+        name: 解决方案
+        type: string
+        required: true
+      - id: downtime_hours
+        name: 停机时长
+        type: string
+      - id: repair_cost
+        name: 维修费用
+        type: string
+    writes:
+      - target: work_order
+        operation: update
+        set:
+          status: "COMPLETED"
+    triggers_before: [R04]
+    triggers_after: [R03]
+    permission:
+      roles: [technician, manager]
+    decision_log: true
+
+  - id: A03
+    name: 分配技术员
+    description: 将工单分配给技术员
+    phase: alpha
+    params:
+      - id: work_order_id
+        name: 工单ID
+        type: string
+        required: true
+      - id: technician_id
+        name: 技术员ID
+        type: string
+        required: true
+    writes:
+      - target: work_order
+        operation: update
+        set:
+          status: "IN_PROGRESS"
+    permission:
+      roles: [manager]
+      agents: [maintenance-agent]
+
+functions:
+  - id: calc_mtbf
+    name: 计算平均无故障间隔
+    description: 基于历史工单计算设备MTBF
+    phase: beta
+    inputs:
+      - id: equipment_id
+        type: string
+        required: true
+    output:
+      type: object
+      fields:
+        - id: mtbf_hours
+          type: decimal
+          description: MTBF小时数
+        - id: sample_size
+          type: integer
+          description: 样本工单数
+    implementation: sql
+    body: |
+      WITH failures AS (
+        SELECT created_at, LAG(created_at) OVER (ORDER BY created_at) as prev
+        FROM work_orders
+        WHERE equipment_id = $1 AND work_type = 'CORRECTIVE'
+        ORDER BY created_at
+      )
+      SELECT AVG(EXTRACT(EPOCH FROM (created_at - prev))/3600) as mtbf_hours,
+             COUNT(*) as sample_size
+      FROM failures WHERE prev IS NOT NULL
+
+  - id: suggest_technician
+    name: 推荐技术员
+    description: 根据技能和负载推荐最佳技术员
+    phase: beta
+    inputs:
+      - id: work_order_id
+        type: string
+        required: true
+      - id: top_n
+        type: integer
+        default: 3
+    output:
+      type: object
+      fields:
+        - id: technician_id
+          type: string
+        - id: match_score
+          type: decimal
+    implementation: agent_delegated
+
+graph_config:
+  archive_events_after_days: 180
+  structure_sync: on_publish
+  status_sync: true
+  event_sync: realtime
+  nodes_not_in_graph: [decision_log, spare_part_usage]
+
+connector_hints:
+  - class_id: equipment
+    attributes:
+      - attribute_id: code
+        source_hint: "SAP PM → EQUNR"
+        mapping_status: mapped
+      - attribute_id: name
+        source_hint: "SAP PM → EQKTX"
+        mapping_status: mapped
+      - attribute_id: location
+        source_hint: "SAP PM → SWERK + BEBER"
+        mapping_status: mapped
+  - class_id: work_order
+    attributes:
+      - attribute_id: order_no
+        source_hint: "SAP PM → AUFNR"
+        mapping_status: mapped

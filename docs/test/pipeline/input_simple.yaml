@@ -1,0 +1,54 @@
+# Pipeline 测试：简单本体 (2 classes, 1 relationship)
+# 用于验证 Pipeline 基础功能和回归测试
+id: simple_crm
+name: 简单CRM
+version: "1.0"
+
+classes:
+  - id: customer
+    name: 客户
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: name
+        name: 客户名称
+        type: string
+        required: true
+        graph_sync: true
+      - id: email
+        name: 邮箱
+        type: string
+        unique: true
+      - id: level
+        name: 客户等级
+        type: enum
+        enum_values: [NORMAL, VIP, SVIP]
+        graph_sync: true
+      - id: created_at
+        name: 创建时间
+        type: datetime
+
+  - id: contact_record
+    name: 联系记录
+    phase: alpha
+    attributes:
+      - id: contact_type
+        name: 联系方式
+        type: enum
+        required: true
+        enum_values: [PHONE, EMAIL, VISIT, ONLINE]
+      - id: summary
+        name: 摘要
+        type: text
+      - id: contact_date
+        name: 联系日期
+        type: datetime
+        required: true
+
+relationships:
+  - id: contacted
+    name: 联系了
+    from: contact_record
+    to: customer
+    cardinality: many_to_one
+    required: true

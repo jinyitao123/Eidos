@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+
+# Go
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Misc
+*.log
+*.zip
+tmp/
+
+# Binary
+pipeline/generate

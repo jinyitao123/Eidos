@@ -1,0 +1,197 @@
+<style>
+*{box-sizing:border-box;margin:0}
+.w{font-family:var(--font-sans);color:var(--color-text-primary);max-width:680px}
+.back{font-size:13px;color:var(--color-text-secondary);cursor:pointer;margin-bottom:12px;display:inline-block}
+.hd{font-size:18px;font-weight:500;margin-bottom:4px}
+.hd-sub{font-size:13px;color:var(--color-text-secondary);margin-bottom:16px}
+.tabs{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:16px}
+.tab{padding:8px 14px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-0.5px}
+.tab.active{color:var(--color-text-primary);font-weight:500;border-bottom-color:var(--color-text-primary)}
+.rule-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:12px;background:var(--color-background-primary)}
+.rule-card:hover{border-color:var(--color-border-secondary)}
+.rule-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.rule-id{font-family:var(--font-mono);font-size:12px;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:4px}
+.rule-name{font-size:14px;font-weight:500;margin-left:8px}
+.rule-severity{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500}
+.sev-warn{background:var(--color-background-warning);color:var(--color-text-warning)}
+.sev-danger{background:var(--color-background-danger);color:var(--color-text-danger)}
+.sev-info{background:var(--color-background-info);color:var(--color-text-info)}
+.rule-body{display:flex;flex-direction:column;gap:8px}
+.rule-row{display:flex;align-items:center;gap:8px;font-size:12px}
+.rule-label{min-width:52px;color:var(--color-text-tertiary);font-weight:500}
+.rule-val{flex:1;padding:6px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);font-size:12px;background:var(--color-background-primary);color:var(--color-text-primary)}
+select.rule-val{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}
+.rule-connector{display:flex;align-items:center;justify-content:center;padding:4px 0}
+.rule-connector span{font-size:11px;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:1px 10px;border-radius:99px}
+.param-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.param-item{display:flex;flex-direction:column;gap:2px}
+.param-label{font-size:11px;color:var(--color-text-tertiary)}
+.param-val{font-size:12px;padding:5px 8px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.configurable-tag{font-size:9px;padding:1px 4px;border-radius:3px;background:var(--color-background-success);color:var(--color-text-success);margin-left:4px}
+.sep{height:0.5px;background:var(--color-border-tertiary);margin:16px 0}
+.action-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;margin-bottom:10px;background:var(--color-background-primary)}
+.action-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.action-id{font-family:var(--font-mono);font-size:12px;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:4px}
+.action-name{font-size:14px;font-weight:500;margin-left:8px}
+.action-writes{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.trigger-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.trigger-tag{font-size:10px;padding:2px 8px;border-radius:4px}
+.trig-before{background:#EEEDFE;color:#534AB7}
+.trig-after{background:#E1F5EE;color:#0F6E56}
+.perm-tags{display:flex;gap:4px;margin-top:6px}
+.perm-tag{font-size:10px;padding:2px 8px;border-radius:4px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.add-btn{font-size:12px;color:var(--color-text-info);cursor:pointer;padding:8px;display:inline-block}
+.add-btn:hover{text-decoration:underline}
+</style>
+<div class="w">
+<div class="back">← 返回图谱视图</div>
+<div class="hd">规则与动作</div>
+<div class="hd-sub">备件管理 · 8条规则 · 8个动作</div>
+
+<div class="tabs">
+<div class="tab active">规则（8）</div>
+<div class="tab">动作（8）</div>
+</div>
+
+<div class="rule-card">
+<div class="rule-top">
+<div><span class="rule-id">R01</span><span class="rule-name">安全库存预警</span></div>
+<span class="rule-severity sev-warn">warning</span>
+</div>
+<div class="rule-body">
+<div class="rule-row">
+<span class="rule-label">触发</span>
+<select class="rule-val" style="max-width:200px"><option selected>动作执行后</option><option>定时</option><option>数据变更后</option></select>
+<span style="font-size:12px;color:var(--color-text-tertiary)">A01 记录出库, A02 记录入库</span>
+</div>
+<div class="rule-connector"><span>当</span></div>
+<div class="rule-row">
+<span class="rule-label">条件</span>
+<select class="rule-val" style="max-width:140px"><option>库存头寸</option></select>
+<span style="font-size:12px">.</span>
+<select class="rule-val" style="max-width:120px"><option selected>安全缺口</option></select>
+<select class="rule-val" style="max-width:60px"><option selected>&gt;</option><option>&lt;</option><option>=</option></select>
+<input class="rule-val" style="max-width:50px" value="0" />
+</div>
+<div class="rule-connector"><span>则</span></div>
+<div class="rule-row">
+<span class="rule-label">动作</span>
+<select class="rule-val" style="max-width:160px"><option selected>通知Agent</option><option>更新属性</option><option>需要审批</option><option>创建记录</option></select>
+<span style="font-size:12px;color:var(--color-text-tertiary)">→ inventory-steward</span>
+</div>
+</div>
+<div class="param-grid">
+<div class="param-item">
+<div class="param-label">默认安全库存 <span class="configurable-tag">客户可调</span></div>
+<input class="param-val" value="2" />
+</div>
+</div>
+</div>
+
+<div class="rule-card">
+<div class="rule-top">
+<div><span class="rule-id">R04</span><span class="rule-name">高价值领用拦截</span></div>
+<span class="rule-severity sev-danger">critical</span>
+</div>
+<div class="rule-body">
+<div class="rule-row">
+<span class="rule-label">触发</span>
+<select class="rule-val" style="max-width:200px"><option selected>动作执行前</option></select>
+<span style="font-size:12px;color:var(--color-text-tertiary)">A01 记录出库</span>
+</div>
+<div class="rule-connector"><span>当</span></div>
+<div class="rule-row">
+<span class="rule-label">条件</span>
+<span style="font-size:12px;color:var(--color-text-secondary)">[跟踪].标准价格</span>
+<select class="rule-val" style="max-width:60px"><option selected>&gt;</option></select>
+<input class="rule-val" style="max-width:80px" value="2000" />
+<span style="font-size:11px;color:var(--color-text-tertiary)">元</span>
+</div>
+<div class="rule-connector"><span>则</span></div>
+<div class="rule-row">
+<span class="rule-label">动作</span>
+<select class="rule-val" style="max-width:160px"><option selected>需要审批</option></select>
+<span style="font-size:12px;color:var(--color-text-tertiary)">→ 工段长审批</span>
+</div>
+</div>
+<div class="param-grid">
+<div class="param-item">
+<div class="param-label">高价值阈值 <span class="configurable-tag">客户可调</span></div>
+<input class="param-val" value="2000" />
+</div>
+</div>
+</div>
+
+<div class="rule-card">
+<div class="rule-top">
+<div><span class="rule-id">R05</span><span class="rule-name">频次异常检测</span></div>
+<span class="rule-severity sev-warn">warning</span>
+</div>
+<div class="rule-body">
+<div class="rule-row">
+<span class="rule-label">触发</span>
+<span style="font-size:12px;color:var(--color-text-tertiary)">动作执行后 · A01 记录出库</span>
+</div>
+<div class="rule-connector"><span>当</span></div>
+<div class="rule-row">
+<span class="rule-label">条件</span>
+<span style="font-size:12px;color:var(--color-text-secondary)">同设备+同备件+近N天领用次数 >=</span>
+<input class="rule-val" style="max-width:50px" value="3" />
+</div>
+</div>
+<div class="param-grid">
+<div class="param-item">
+<div class="param-label">异常次数阈值 <span class="configurable-tag">客户可调</span></div>
+<input class="param-val" value="3" />
+</div>
+<div class="param-item">
+<div class="param-label">检测窗口（天） <span class="configurable-tag">客户可调</span></div>
+<input class="param-val" value="30" />
+</div>
+</div>
+</div>
+
+<div class="add-btn" onclick="sendPrompt('新增一条业务规则')">+ 新增规则</div>
+
+<div class="sep"></div>
+
+<div style="font-size:14px;font-weight:500;margin-bottom:12px">动作</div>
+
+<div class="action-card">
+<div class="action-top">
+<div><span class="action-id">A01</span><span class="action-name">记录出库</span></div>
+</div>
+<div class="action-writes">
+写入：库存头寸.当前数量 = current_qty - quantity<br>
+写入：出入库记录 = 新建一条
+</div>
+<div class="trigger-tags">
+<span class="trigger-tag trig-before">执行前触发 R04</span>
+<span class="trigger-tag trig-after">执行后触发 R01</span>
+<span class="trigger-tag trig-after">执行后触发 R05</span>
+</div>
+<div class="perm-tags">
+<span class="perm-tag">设备工程师</span>
+<span class="perm-tag">库管员</span>
+</div>
+</div>
+
+<div class="action-card">
+<div class="action-top">
+<div><span class="action-id">A04</span><span class="action-name">生成请购建议</span></div>
+</div>
+<div class="action-writes">
+写入：采购单 = 新建一条（状态=草稿）
+</div>
+<div class="trigger-tags">
+<span class="trigger-tag trig-after">执行后触发：无</span>
+</div>
+<div class="perm-tags">
+<span class="perm-tag">Agent: inventory-steward</span>
+<span class="perm-tag">Agent: procurement-advisor</span>
+</div>
+</div>
+
+<div class="add-btn" onclick="sendPrompt('新增一个受控动作')">+ 新增动作</div>
+
+</div>

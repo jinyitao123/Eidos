@@ -1,0 +1,204 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.addBtn {
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 0.5px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  background: var(--color-bg-secondary);
+}
+
+.empty { font-size: 13px; color: var(--color-text-tertiary); padding: 40px 0; text-align: center; }
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  border: 0.5px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  background: var(--color-bg-primary);
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--color-border-hover);
+}
+
+.cardDashed {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.cardLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iconBox {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.cardDesc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badgePub {
+  background: var(--color-success-tint);
+  color: var(--color-success-tone);
+}
+
+.badgeBuild {
+  background: var(--color-info-tint);
+  color: var(--color-info-tone);
+}
+
+.badgePending {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+}
+
+.stats {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 10px;
+}
+
+.stats strong {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+
+.cardStats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+}
+
+.cardTags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fcTag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #FAECE7;
+  color: #993C1D;
+}
+
+.cardDelete {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.card:hover .cardDelete { display: block; }
+.cardDelete:hover { background: #fce8e6; color: #b3261e; }
+
+.importTag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #E8F4FD;
+  color: #1A6FA0;
+  margin-right: 4px;
+  margin-top: 4px;
+}
+
+.sharedHint {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--color-border-default);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}

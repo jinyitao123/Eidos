@@ -1,0 +1,379 @@
+# Pipeline 测试：复杂本体 (学校管理场景)
+# 覆盖：多种 cardinality, derived, rules, actions, functions, graph_config
+id: school_management
+name: 学校管理
+version: "1.0"
+description: 学校教务管理系统本体
+
+classes:
+  - id: student
+    name: 学生
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: student_no
+        name: 学号
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+      - id: name
+        name: 姓名
+        type: string
+        required: true
+        graph_sync: true
+      - id: grade
+        name: 年级
+        type: integer
+        required: true
+        graph_sync: true
+      - id: enrollment_date
+        name: 入学日期
+        type: date
+        required: true
+      - id: status
+        name: 状态
+        type: enum
+        required: true
+        enum_values: [ENROLLED, GRADUATED, SUSPENDED, WITHDRAWN]
+        graph_sync: true
+      - id: gpa
+        name: 平均绩点
+        type: decimal
+        derived: "AVG([enrolls_in].score) / 25"
+      - id: total_credits
+        name: 总学分
+        type: integer
+        derived: "SUM([enrolls_in].credit WHERE grade >= 60)"
+
+  - id: course
+    name: 课程
+    phase: alpha
+    attributes:
+      - id: course_code
+        name: 课程编号
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+      - id: name
+        name: 课程名称
+        type: string
+        required: true
+        graph_sync: true
+      - id: credit
+        name: 学分
+        type: integer
+        required: true
+      - id: department
+        name: 所属院系
+        type: string
+        graph_sync: true
+      - id: max_capacity
+        name: 最大容量
+        type: integer
+        default: 50
+        configurable: true
+      - id: current_enrollment
+        name: 当前选课人数
+        type: integer
+        derived: "COUNT([enrolls_in])"
+
+  - id: teacher
+    name: 教师
+    phase: alpha
+    attributes:
+      - id: employee_id
+        name: 工号
+        type: string
+        required: true
+        unique: true
+      - id: name
+        name: 姓名
+        type: string
+        required: true
+        graph_sync: true
+      - id: title
+        name: 职称
+        type: enum
+        enum_values: [LECTURER, ASSOCIATE_PROFESSOR, PROFESSOR]
+        graph_sync: true
+      - id: department
+        name: 所属院系
+        type: string
+
+  - id: enrollment
+    name: 选课记录
+    phase: alpha
+    attributes:
+      - id: score
+        name: 成绩
+        type: decimal
+      - id: semester
+        name: 学期
+        type: string
+        required: true
+      - id: status
+        name: 状态
+        type: enum
+        required: true
+        enum_values: [ENROLLED, COMPLETED, DROPPED, FAILED]
+    unique_constraints:
+      - columns: [student_id, course_id, semester]
+
+  - id: classroom
+    name: 教室
+    phase: alpha
+    attributes:
+      - id: room_number
+        name: 教室编号
+        type: string
+        required: true
+        unique: true
+      - id: building
+        name: 教学楼
+        type: string
+        required: true
+      - id: capacity
+        name: 容量
+        type: integer
+        required: true
+      - id: has_projector
+        name: 有投影仪
+        type: boolean
+        default: true
+
+  - id: decision_log
+    name: 决策日志
+    phase: beta
+    attributes:
+      - id: decision_type
+        name: 决策类型
+        type: string
+      - id: related_action
+        name: 关联操作
+        type: string
+      - id: related_entity
+        name: 关联实体
+        type: string
+      - id: original_suggestion
+        name: 原始建议
+        type: text
+      - id: final_decision
+        name: 最终决定
+        type: text
+      - id: decided_by
+        name: 决策人
+        type: string
+      - id: decided_at
+        name: 决策时间
+        type: datetime
+      - id: reason
+        name: 决策原因
+        type: text
+
+relationships:
+  - id: enrolls_in
+    name: 选修
+    from: enrollment
+    to: course
+    cardinality: many_to_one
+    required: true
+
+  - id: enrolled_by
+    name: 选课学生
+    from: enrollment
+    to: student
+    cardinality: many_to_one
+    required: true
+
+  - id: teaches
+    name: 授课
+    from: teacher
+    to: course
+    cardinality: many_to_many
+    edge_attributes:
+      - id: semester
+        name: 学期
+        type: string
+      - id: role
+        name: 角色
+        type: string
+        enum_values: [PRIMARY, ASSISTANT, GUEST]
+
+  - id: held_in
+    name: 上课教室
+    from: course
+    to: classroom
+    cardinality: many_to_one
+
+rules:
+  - id: R01
+    name: 选课容量检查
+    description: 选课人数不能超过最大容量
+    phase: alpha
+    severity: warning
+    trigger:
+      type: before_action
+      source: [A01]
+    condition:
+      entity: course
+      expression: "current_enrollment >= max_capacity"
+    action:
+      type: block
+      target: enrollment
+      message_template: "课程 {{course.name}} 已满员 ({{current_enrollment}}/{{max_capacity}})"
+
+  - id: R02
+    name: 成绩录入后更新GPA
+    phase: alpha
+    severity: info
+    trigger:
+      type: after_action
+      source: [A02]
+    condition:
+      entity: student
+      expression: "true"
+    action:
+      type: recalculate
+      target: student.gpa
+
+  - id: R03
+    name: 学期末成绩未录入提醒
+    phase: alpha
+    severity: warning
+    trigger:
+      type: schedule
+      source: []
+      cron: "0 8 15 1,7 *"
+    condition:
+      entity: enrollment
+      expression: "status = 'ENROLLED' AND score IS NULL"
+    action:
+      type: notify
+      target: teacher
+      message_template: "有 {{count}} 门课程的成绩尚未录入"
+
+actions:
+  - id: A01
+    name: 学生选课
+    phase: alpha
+    params:
+      - id: student_id
+        type: string
+        required: true
+        name: 学生ID
+      - id: course_id
+        type: string
+        required: true
+        name: 课程ID
+      - id: semester
+        type: string
+        required: true
+        name: 学期
+    writes:
+      - target: enrollment
+        operation: insert
+        set:
+          status: "ENROLLED"
+    triggers_before: [R01]
+    permission:
+      roles: [student, advisor]
+      agents: [enrollment-agent]
+
+  - id: A02
+    name: 录入成绩
+    phase: alpha
+    params:
+      - id: enrollment_id
+        type: string
+        required: true
+        name: 选课记录ID
+      - id: score
+        type: string
+        required: true
+        name: 成绩
+    writes:
+      - target: enrollment
+        operation: update
+        set:
+          status: "COMPLETED"
+    triggers_after: [R02]
+    permission:
+      roles: [teacher]
+    decision_log: true
+
+  - id: A03
+    name: 退课
+    phase: alpha
+    params:
+      - id: enrollment_id
+        type: string
+        required: true
+        name: 选课记录ID
+      - id: reason
+        type: string
+        name: 退课原因
+    writes:
+      - target: enrollment
+        operation: update
+        set:
+          status: "DROPPED"
+    permission:
+      roles: [student, advisor]
+    decision_log: true
+
+functions:
+  - id: calc_class_rank
+    name: 计算班级排名
+    phase: beta
+    inputs:
+      - id: student_id
+        type: string
+        required: true
+      - id: semester
+        type: string
+        required: true
+    output:
+      type: object
+      fields:
+        - id: rank
+          type: integer
+        - id: total_students
+          type: integer
+        - id: percentile
+          type: decimal
+    implementation: sql
+    body: |
+      WITH ranked AS (
+        SELECT student_id, AVG(score) as avg_score,
+               RANK() OVER (ORDER BY AVG(score) DESC) as rank,
+               COUNT(*) OVER () as total
+        FROM enrollments WHERE semester = $2 AND score IS NOT NULL
+        GROUP BY student_id
+      )
+      SELECT rank, total as total_students,
+             (1 - rank::decimal / total) * 100 as percentile
+      FROM ranked WHERE student_id = $1
+
+graph_config:
+  archive_events_after_days: 365
+  structure_sync: on_publish
+  status_sync: true
+  event_sync: realtime
+  nodes_not_in_graph: [decision_log]
+
+connector_hints:
+  - class_id: student
+    attributes:
+      - attribute_id: student_no
+        source_hint: "教务系统 → XH"
+        mapping_status: mapped
+      - attribute_id: name
+        source_hint: "教务系统 → XM"
+        mapping_status: mapped
+  - class_id: course
+    attributes:
+      - attribute_id: course_code
+        source_hint: "教务系统 → KCDM"
+        mapping_status: mapped

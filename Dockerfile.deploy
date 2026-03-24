@@ -1,0 +1,22 @@
+FROM golang:1.26-alpine AS builder-server
+
+WORKDIR /build/server
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+COPY server/ ./
+RUN CGO_ENABLED=0 go build -o /ontologyserver ./cmd/ontologyserver
+
+FROM golang:1.26-alpine AS builder-pipeline
+
+WORKDIR /build/pipeline
+COPY pipeline/go.mod pipeline/go.sum ./
+RUN go mod download
+COPY pipeline/ ./
+RUN CGO_ENABLED=0 go build -o /generate ./cmd/generate
+
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
+COPY --from=builder-server /ontologyserver /ontologyserver
+COPY --from=builder-pipeline /generate /generate
+EXPOSE 9091
+CMD ["/ontologyserver"]

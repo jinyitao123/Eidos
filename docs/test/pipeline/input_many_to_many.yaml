@@ -1,0 +1,115 @@
+# Pipeline 测试：多对多关系 + edge_attributes
+# 验证：junction table 生成、edge_attribute 列、PascalCase 转换
+id: social_network
+name: 社交网络
+version: "1.0"
+
+classes:
+  - id: user_profile
+    name: 用户
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: username
+        name: 用户名
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+      - id: display_name
+        name: 显示名
+        type: string
+        required: true
+        graph_sync: true
+      - id: bio
+        name: 简介
+        type: text
+      - id: follower_count
+        name: 粉丝数
+        type: integer
+        derived: "COUNT([follows] WHERE direction = 'in')"
+      - id: following_count
+        name: 关注数
+        type: integer
+        derived: "COUNT([follows] WHERE direction = 'out')"
+
+  - id: post
+    name: 帖子
+    phase: alpha
+    attributes:
+      - id: content
+        name: 内容
+        type: text
+        required: true
+      - id: post_type
+        name: 类型
+        type: enum
+        enum_values: [TEXT, IMAGE, VIDEO, LINK]
+      - id: like_count
+        name: 点赞数
+        type: integer
+        derived: "COUNT([liked_by])"
+      - id: created_at
+        name: 发布时间
+        type: datetime
+        required: true
+
+  - id: tag
+    name: 标签
+    phase: alpha
+    attributes:
+      - id: name
+        name: 标签名
+        type: string
+        required: true
+        unique: true
+        graph_sync: true
+      - id: usage_count
+        name: 使用次数
+        type: integer
+        derived: "COUNT([tagged_with])"
+
+relationships:
+  # 自引用多对多：用户关注用户
+  - id: follows
+    name: 关注
+    from: user_profile
+    to: user_profile
+    cardinality: many_to_many
+    edge_attributes:
+      - id: followed_at
+        name: 关注时间
+        type: datetime
+      - id: is_mutual
+        name: 互相关注
+        type: boolean
+      - id: relationship_level
+        name: 关系级别
+        type: string
+        enum_values: [FOLLOW, CLOSE_FRIEND, FAMILY]
+
+  # 多对多：用户点赞帖子
+  - id: liked_by
+    name: 被点赞
+    from: post
+    to: user_profile
+    cardinality: many_to_many
+    edge_attributes:
+      - id: liked_at
+        name: 点赞时间
+        type: datetime
+
+  # 多对多：帖子打标签
+  - id: tagged_with
+    name: 打标签
+    from: post
+    to: tag
+    cardinality: many_to_many
+
+  # 多对一：帖子作者
+  - id: authored_by
+    name: 作者
+    from: post
+    to: user_profile
+    cardinality: many_to_one
+    required: true

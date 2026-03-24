@@ -1,0 +1,120 @@
+# Pipeline 测试：所有属性类型覆盖
+# 验证 PG DDL 类型映射、TS 类型映射、JSON Schema 类型映射
+id: type_coverage
+name: 类型覆盖测试
+version: "1.0"
+
+classes:
+  - id: type_test
+    name: 类型测试
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: field_string
+        name: 字符串类型
+        type: string
+        required: true
+        description: "映射: PG→TEXT, TS→string, JSON→string"
+
+      - id: field_text
+        name: 长文本类型
+        type: text
+        description: "映射: PG→TEXT, TS→string, JSON→string"
+
+      - id: field_integer
+        name: 整数类型
+        type: integer
+        required: true
+        default: 0
+        description: "映射: PG→INTEGER, TS→number, JSON→integer"
+
+      - id: field_decimal
+        name: 小数类型
+        type: decimal
+        unit: CNY
+        description: "映射: PG→NUMERIC(18,4), TS→number, JSON→number"
+
+      - id: field_boolean
+        name: 布尔类型
+        type: boolean
+        default: false
+        description: "映射: PG→BOOLEAN, TS→boolean, JSON→boolean"
+
+      - id: field_date
+        name: 日期类型
+        type: date
+        description: "映射: PG→DATE, TS→string, JSON→string(date)"
+
+      - id: field_datetime
+        name: 日期时间类型
+        type: datetime
+        description: "映射: PG→TIMESTAMPTZ, TS→string, JSON→string(date-time)"
+
+      - id: field_enum
+        name: 枚举类型
+        type: enum
+        enum_values: [ACTIVE, INACTIVE, PENDING, ARCHIVED]
+        graph_sync: true
+        description: "映射: PG→TEXT+CHECK, TS→literal union, JSON→enum"
+
+      - id: field_string_unique
+        name: 唯一字符串
+        type: string
+        unique: true
+        description: "验证 UNIQUE 约束生成"
+
+      - id: field_with_default_str
+        name: 有默认值的字符串
+        type: string
+        default: "N/A"
+
+      - id: field_with_default_int
+        name: 有默认值的整数
+        type: integer
+        default: 100
+
+      - id: field_with_default_bool
+        name: 有默认值的布尔
+        type: boolean
+        default: true
+
+      - id: field_derived
+        name: 派生字段
+        type: integer
+        derived: "field_integer * 2"
+
+      - id: field_graph_sync
+        name: 图同步字段
+        type: string
+        graph_sync: true
+
+      - id: field_configurable
+        name: 可配置字段
+        type: integer
+        configurable: true
+        default: 50
+
+  - id: related_entity
+    name: 关联实体
+    phase: alpha
+    attributes:
+      - id: name
+        name: 名称
+        type: string
+        required: true
+      - id: value
+        name: 值
+        type: decimal
+
+relationships:
+  - id: has_related
+    name: 拥有关联
+    from: type_test
+    to: related_entity
+    cardinality: one_to_many
+
+  - id: linked_to
+    name: 链接到
+    from: type_test
+    to: related_entity
+    cardinality: many_to_one

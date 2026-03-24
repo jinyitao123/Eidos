@@ -1,0 +1,86 @@
+# 测试用例：hybrid 格式 (ontology: 包裹元数据，顶层放 classes/relationships)
+# 这是 Agent 生成时最常见的格式
+# 预期：解析成功，id = "restaurant"，classes 来自顶层
+
+ontology:
+  name: 餐厅管理
+  version: "2.0"
+
+classes:
+  - id: dish
+    name: 菜品
+    first_citizen: true
+    phase: alpha
+    attributes:
+      - id: name
+        name: 菜名
+        type: string
+        required: true
+      - id: category
+        name: 分类
+        type: enum
+        required: true
+        enum_values: [APPETIZER, MAIN_COURSE, DESSERT, BEVERAGE]
+        graph_sync: true
+      - id: price
+        name: 价格
+        type: decimal
+        required: true
+        unit: CNY
+      - id: is_available
+        name: 是否可用
+        type: boolean
+        graph_sync: true
+      - id: prep_time_minutes
+        name: 制作时间
+        type: integer
+        unit: minutes
+
+  - id: order_item
+    name: 订单项
+    phase: alpha
+    attributes:
+      - id: quantity
+        name: 数量
+        type: integer
+        required: true
+      - id: subtotal
+        name: 小计
+        type: decimal
+        derived: "quantity * [orders].price"
+      - id: note
+        name: 备注
+        type: text
+
+  - id: dining_table
+    name: 餐桌
+    phase: alpha
+    attributes:
+      - id: table_number
+        name: 桌号
+        type: string
+        required: true
+        unique: true
+      - id: capacity
+        name: 座位数
+        type: integer
+        required: true
+      - id: zone
+        name: 区域
+        type: enum
+        enum_values: [INDOOR, OUTDOOR, VIP]
+        graph_sync: true
+
+relationships:
+  - id: orders
+    name: 点的菜
+    from: order_item
+    to: dish
+    cardinality: many_to_one
+    required: true
+
+  - id: served_at
+    name: 就座餐桌
+    from: order_item
+    to: dining_table
+    cardinality: many_to_one

@@ -1,0 +1,106 @@
+# 测试用例：wrapped 格式 (ontology: {...})
+# 预期：解析成功，ontology.id = "hotel_management"
+ontology:
+  id: hotel_management
+  name: 酒店管理
+  version: "1.0"
+  description: 酒店房间与预订管理本体
+
+  classes:
+    - id: room
+      name: 房间
+      first_citizen: true
+      phase: alpha
+      attributes:
+        - id: room_number
+          name: 房间号
+          type: string
+          required: true
+          unique: true
+        - id: floor
+          name: 楼层
+          type: integer
+          required: true
+        - id: room_type
+          name: 房型
+          type: enum
+          required: true
+          enum_values: [STANDARD, DELUXE, SUITE, PRESIDENTIAL]
+        - id: price_per_night
+          name: 每晚价格
+          type: decimal
+          required: true
+          unit: CNY
+        - id: status
+          name: 状态
+          type: enum
+          required: true
+          enum_values: [AVAILABLE, OCCUPIED, MAINTENANCE, RESERVED]
+          graph_sync: true
+        - id: last_checkout_date
+          name: 最近退房日期
+          type: date
+        - id: created_at
+          name: 创建时间
+          type: datetime
+
+    - id: guest
+      name: 住客
+      phase: alpha
+      attributes:
+        - id: name
+          name: 姓名
+          type: string
+          required: true
+        - id: phone
+          name: 手机号
+          type: string
+          required: true
+          unique: true
+        - id: id_number
+          name: 身份证号
+          type: string
+          unique: true
+        - id: vip_level
+          name: VIP等级
+          type: enum
+          enum_values: [NORMAL, SILVER, GOLD, PLATINUM]
+          graph_sync: true
+          configurable: true
+
+    - id: reservation
+      name: 预订
+      phase: alpha
+      attributes:
+        - id: check_in_date
+          name: 入住日期
+          type: date
+          required: true
+        - id: check_out_date
+          name: 退房日期
+          type: date
+          required: true
+        - id: total_price
+          name: 总价
+          type: decimal
+          derived: "DATEDIFF(days, check_in_date, check_out_date) * [books].price_per_night"
+        - id: status
+          name: 状态
+          type: enum
+          required: true
+          enum_values: [PENDING, CONFIRMED, CHECKED_IN, CHECKED_OUT, CANCELLED]
+
+  relationships:
+    - id: books
+      name: 预订房间
+      from: reservation
+      to: room
+      cardinality: many_to_one
+      required: true
+
+    - id: made_by
+      name: 预订人
+      from: reservation
+      to: guest
+      cardinality: many_to_one
+      required: true
