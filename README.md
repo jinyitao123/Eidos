@@ -9,7 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="#what-is-eidos">What</a> · <a href="#how-it-works">How</a> · <a href="#architecture">Architecture</a> · <a href="#getting-started">Get Started</a> · <a href="#roadmap">Roadmap</a> · <a href="#中文说明">中文</a>
+  <a href="./README.zh-CN.md">中文</a> | English
+</p>
+
+<p align="center">
+  <a href="#what-is-eidos">What</a> · <a href="#how-it-works">How</a> · <a href="#architecture">Architecture</a> · <a href="#getting-started">Get Started</a> · <a href="#roadmap">Roadmap</a>
 </p>
 
 ---
@@ -169,67 +173,4 @@ Design specs live in [`docs/`](docs/):
 
 ---
 
-## 中文说明
-
-### Eidos 是什么
-
-Eidos 是一个 **AI 原生的本体编辑器**。四个 Agent 组成的网络从业务调研文档中自动构建结构化本体（YAML 格式），你在可视化界面中审核和微调，然后确定性管道一键生成全部下游代码：
-
-- **PostgreSQL schema** — 建表语句、约束、增量迁移
-- **MCP 工具服务器** — 查询/执行工具 + 完整 Go 实现
-- **Neo4j 图谱 schema** — 节点标签、关系类型、同步属性
-- **Agent 配置** — 业务 Agent 的工具绑定
-- **规则引擎配置** — 校验规则、触发器、计算字段
-- **TypeScript 类型** — 与数据模型对齐的前端接口
-- **连接器模板** — 集成映射骨架
-
-**一份 YAML 输入，七种产物输出。零手写基础设施代码。**
-
-### 工作流程
-
-```
-上传业务调研文档
-  ↓
-Agent 网络（四个 Agent 串行协作）
-  S1 场景分析师 → S2 本体架构师 → S3 规则设计师 → S4 审核员
-  ↓
-输出：结构化本体 YAML
-  ↓
-可视化审核（图谱视图 · 类编辑器 · 规则编辑器）
-  ↓
-确认发布
-  ↓
-管道生成器（七步确定性生成，无 LLM）
-  ↓
-业务 Agent 立即可用
-```
-
-### 设计原则
-
-- **YAML 是唯一真相源** — 所有下游代码从它生成，从不手写
-- **管道是确定性的** — 相同 YAML 永远产出相同结果，无随机性、无 LLM、无网络调用
-- **人在回路中** — 每个 Agent 阶段必须人工确认后才能进入下一步
-- **增量优先** — 版本更新生成 `ALTER TABLE` 而非 `DROP + CREATE`
-
-### 技术栈
-
-| 层 | 技术 |
-|----|------|
-| 前端 | React 19 + TypeScript，独立 SPA |
-| 后端 | Go（管道生成器 + MCP 服务器） |
-| Agent 运行时 | Weave API |
-| 存储 | PostgreSQL + Neo4j |
-| 协议 | MCP over JSON-RPC 2.0 |
-
-### 开发阶段
-
-| 阶段 | 重点 | 状态 |
-|------|------|------|
-| **1** | YAML 规范 + PG/MCP 生成器 + 端到端验证 | 进行中 |
-| **2** | Agent 网络 + 7 个可视化审核页面 + 剩余生成器 | 计划中 |
-| **3** | 第二业务场景验证 + 跨本体复用 | 计划中 |
-
----
-
 <p align="center"><em>Named after Plato's εἶδος (eidos) — the ideal Form behind all things.</em></p>
-<p align="center"><em>取名自柏拉图的 εἶδος（理型）— 万物背后的理想形式。</em></p>
