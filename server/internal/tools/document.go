@@ -8,6 +8,43 @@ import (
 	"ontologyserver/internal/mcp"
 )
 
+func registerUploadDocument(router *mcp.Router, d *Deps) {
+	router.Register(mcp.ToolDef{
+		Name:        "upload_document",
+		Description: "上传调研文档到项目。返回 document_id 供 read_document 使用。",
+		InputSchema: mcp.Schema(map[string]any{
+			"project_id": mcp.Prop("string", "项目ID"),
+			"filename":   mcp.Prop("string", "文件名"),
+			"content":    mcp.Prop("string", "文档内容"),
+		}, []string{"project_id", "filename", "content"}),
+	}, func(ctx context.Context, args json.RawMessage) *mcp.ToolCallResult {
+		var p struct {
+			ProjectID string `json:"project_id"`
+			Filename  string `json:"filename"`
+			Content   string `json:"content"`
+		}
+		if err := json.Unmarshal(args, &p); err != nil {
+			return mcp.ErrorResult("invalid arguments: " + err.Error())
+		}
+
+		var docID string
+		err := d.PG.QueryRow(ctx,
+			`INSERT INTO ontology.documents (project_id, filename, content)
+			 VALUES ($1, $2, $3) RETURNING id::text`,
+			p.ProjectID, p.Filename, p.Content,
+		).Scan(&docID)
+		if err != nil {
+			return mcp.ErrorResult("failed to save document: " + err.Error())
+		}
+
+		return mcp.TextResult(map[string]any{
+			"document_id": docID,
+			"filename":    p.Filename,
+			"word_count":  len(strings.Fields(p.Content)),
+		})
+	})
+}
+
 func registerReadDocument(router *mcp.Router, d *Deps) {
 	router.Register(mcp.ToolDef{
 		Name:        "read_document",

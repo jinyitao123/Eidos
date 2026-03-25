@@ -35,3 +35,70 @@ export async function weavePost<T = unknown>(path: string, body: unknown): Promi
   if (!res.ok) throw new Error(`Weave API ${res.status}: ${path}`)
   return res.json()
 }
+
+/** SSE event from Weave streaming API */
+export interface SSEEvent {
+  event: string
+  data: Record<string, unknown>
+}
+
+/**
+ * Stream a POST request to Weave API via SSE.
+ * Calls onEvent for each SSE event, returns the final "done" payload.
+ */
+export async function weaveStream(
+  path: string,
+  body: unknown,
+  onEvent: (evt: SSEEvent) => void,
+): Promise<Record<string, unknown>> {
+  const token = await getToken()
+  const res = await fetch(`/api${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ...body as object, stream: true }),
+  })
+  if (!res.ok) throw new Error(`Weave API ${res.status}: ${path}`)
+  if (!res.body) throw new Error('No response body')
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let donePayload: Record<string, unknown> = {}
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // Parse SSE lines
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    let currentEvent = ''
+    let currentData = ''
+
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        currentEvent = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
+        currentData = line.slice(6)
+      } else if (line === '' && currentEvent && currentData) {
+        try {
+          const parsed = JSON.parse(currentData)
+          const evt: SSEEvent = { event: currentEvent, data: parsed }
+          onEvent(evt)
+          if (currentEvent === 'done') {
+            donePayload = parsed
+          }
+        } catch { /* skip malformed */ }
+        currentEvent = ''
+        currentData = ''
+      }
+    }
+  }
+
+  return donePayload
+}

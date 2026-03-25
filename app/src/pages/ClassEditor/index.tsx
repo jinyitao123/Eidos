@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchOntology, fetchProject } from '../../api/ontology'
 import { mcpCall } from '../../api/mcp'
-import { weavePost } from '../../api/client'
+import { weaveStream } from '../../api/client'
 import type { Ontology, OntologyClass, OntologyAttribute } from '../../types/ontology'
 import { ConfirmModal, AlertModal } from '../../components/Modal'
 import styles from './ClassEditor.module.css'
@@ -137,14 +137,21 @@ export function ClassEditor() {
     if (!aiInput.trim() || aiLoading) return
     setAiLoading(true)
     setAiResponse('')
+    const userMsg = aiInput.trim()
+    setAiInput('')
     try {
-      const res = await weavePost<{ response?: string; message?: string }>('/v1/chat', {
-        agent: 'ontology-architect',
-        message: aiInput,
+      let accumulated = ''
+      await weaveStream('/v1/chat', {
+        agent: 'ontology-editor-assist',
+        message: `当前编辑的类: ${cls?.id || classId}\n用户指令: ${userMsg}`,
         profile: `project_id=${projectId}`,
+      }, (evt) => {
+        if (evt.event === 'chunk') {
+          accumulated += (evt.data.content as string) || ''
+          setAiResponse(accumulated)
+        }
       })
-      setAiResponse(res.response || res.message || JSON.stringify(res))
-      setAiInput('')
+      if (!accumulated) setAiResponse('(无响应)')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setAiResponse('Error: ' + msg)

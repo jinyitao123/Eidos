@@ -2,7 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchProject, fetchStageOutput } from '../../api/ontology'
 import { mcpCall } from '../../api/mcp'
-import { weavePost } from '../../api/client'
+import { weaveStream } from '../../api/client'
+import ReactMarkdown from 'react-markdown'
 import type { Project } from '../../types/ontology'
 import { ConfirmModal, AlertModal } from '../../components/Modal'
 import styles from './AgentBuild.module.css'
@@ -13,13 +14,6 @@ interface ChatMessage {
   agentName?: string
   content: string
   timestamp: string
-}
-
-interface WeaveResp {
-  output?: string
-  session_id?: string
-  run_id?: string
-  stop_reason?: string
 }
 
 const STAGES = [
@@ -92,21 +86,94 @@ export function AgentBuild() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function callAgent(message: string): Promise<string> {
+  /** Stream an agent call, updating the last message incrementally. */
+  async function callAgentStream(message: string): Promise<string> {
     const stage = STAGES[currentStage]
-    const resp = await weavePost<WeaveResp>('/v1/chat', {
+    const ts = new Date().toISOString()
+
+    // Add a placeholder agent message that we'll update with streamed content
+    setMessages(prev => [...prev, {
+      role: 'agent',
+      agentId: stage.agent,
+      agentName: stage.name,
+      content: '',
+      timestamp: ts,
+    }])
+
+    let accumulated = ''
+    // Track tool calls as persistent blocks appended after text content
+    const toolLog: string[] = []
+
+    const done = await weaveStream('/v1/chat', {
       agent: stage.agent,
       session_id: sessionIds.current[currentStage] || '',
       message,
       profile: `project_id=${projectId}`,
+    }, (evt) => {
+      if (evt.event === 'chunk') {
+        const chunk = (evt.data.content as string) || ''
+        accumulated += chunk
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last && last.timestamp === ts) {
+            const toolSection = toolLog.length > 0 ? '\n\n---\n' + toolLog.join('\n') : ''
+            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
+          }
+          return updated
+        })
+      } else if (evt.event === 'tool_call') {
+        const name = evt.data.name as string
+        toolLog.push(`> ⏳ \`${name}\` 调用中…`)
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last && last.timestamp === ts) {
+            const toolSection = '\n\n---\n' + toolLog.join('\n')
+            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
+          }
+          return updated
+        })
+      } else if (evt.event === 'tool_result') {
+        const name = (evt.data.name as string) || ''
+        const status = evt.data.status as string
+        // Replace the last matching "calling" entry with result
+        for (let i = toolLog.length - 1; i >= 0; i--) {
+          if (toolLog[i].includes(`\`${name}\``) && toolLog[i].includes('⏳')) {
+            const icon = status === 'error' ? '❌' : '✅'
+            toolLog[i] = `> ${icon} \`${name}\` ${status === 'error' ? '失败' : '完成'}`
+            break
+          }
+        }
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last && last.timestamp === ts) {
+            const toolSection = '\n\n---\n' + toolLog.join('\n')
+            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
+          }
+          return updated
+        })
+      }
     })
 
-    // Store session_id for conversation continuity
-    if (resp.session_id) {
-      sessionIds.current[currentStage] = resp.session_id
+    // Store session_id
+    if (done.session_id) {
+      sessionIds.current[currentStage] = done.session_id as string
     }
 
-    return resp.output || '(无响应)'
+    // Use the final output from done event (most complete)
+    const finalOutput = (done.output as string) || accumulated || '(无响应)'
+    setMessages(prev => {
+      const updated = [...prev]
+      const last = updated[updated.length - 1]
+      if (last && last.timestamp === ts) {
+        updated[updated.length - 1] = { ...last, content: finalOutput }
+      }
+      return updated
+    })
+
+    return finalOutput
   }
 
   function addAgentMessage(content: string) {
@@ -137,23 +204,22 @@ export function AgentBuild() {
 
     setSending(true)
     try {
-      // Save the document to MCP for the agent to read via read_document tool
+      // Upload document to MCP so agents can read it via read_document tool
+      let docId = ''
       try {
-        await mcpCall('save_output', {
+        const uploadResult = await mcpCall<{ document_id: string }>('upload_document', {
           project_id: projectId,
-          stage: 'document',
+          filename: file.name,
           content: text,
         })
+        docId = uploadResult.document_id
       } catch {
-        // document stage may not exist, continue anyway
+        // Continue even if upload fails — content is sent inline below
       }
 
-      addAgentMessage(`正在分析文档 "${file.name}"…`)
-
-      const output = await callAgent(
-        `请分析以下调研文档，项目ID为 ${projectId}:\n\n${text.slice(0, 10000)}`
+      await callAgentStream(
+        `项目ID: ${projectId}\n文档ID: ${docId}\n\n请分析以下调研文档:\n\n${text.slice(0, 10000)}`
       )
-      addAgentMessage(output)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       setAlertState({ message: `Agent 调用失败: ${msg}`, type: 'error' })
@@ -178,8 +244,7 @@ export function AgentBuild() {
 
     setSending(true)
     try {
-      const output = await callAgent(msg)
-      addAgentMessage(output)
+      await callAgentStream(msg)
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err)
       setAlertState({ message: `Agent 调用失败: ${errMsg}`, type: 'error' })
@@ -196,20 +261,8 @@ export function AgentBuild() {
       return
     }
 
-    // Update project stage on the server
-    try {
-      const nextStageId = STAGES[currentStage + 1].id
-      await mcpCall('save_output', {
-        project_id: projectId,
-        stage: STAGES[currentStage].id,
-        content: `stage_confirmed_at: ${new Date().toISOString()}`,
-      })
-      // Advance project current_stage (if server supports it)
-      // For now, just advance locally
-      void nextStageId
-    } catch {
-      // Continue even if save fails
-    }
+    // Advance locally — do NOT call save_output here,
+    // as it would overwrite the agent's real output.
 
     const newConfirmed = [...stageConfirmed]
     newConfirmed[currentStage] = true
@@ -290,28 +343,20 @@ export function AgentBuild() {
               </div>
             )}
             <div className={styles.messageContent}>
-              {msg.content.split('\n').map((line, j) => (
-                <span key={j}>{line}{j < msg.content.split('\n').length - 1 && <br />}</span>
-              ))}
+              {msg.role === 'agent' ? (
+                msg.content ? (
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                ) : (
+                  <span className={styles.thinking}>思考中…</span>
+                )
+              ) : (
+                msg.content.split('\n').map((line, j) => (
+                  <span key={j}>{line}{j < msg.content.split('\n').length - 1 && <br />}</span>
+                ))
+              )}
             </div>
           </div>
         ))}
-        {sending && (
-          <div className={`${styles.message} ${styles.messageAgent}`}>
-            <div className={styles.agentHeader}>
-              <span
-                className={styles.agentAvatar}
-                style={{ background: STAGES[currentStage]?.color || '#6B6560' }}
-              >
-                {STAGES[currentStage].name[0]}
-              </span>
-              <span className={styles.agentName}>{STAGES[currentStage].name}</span>
-            </div>
-            <div className={styles.messageContent}>
-              <span className={styles.thinking}>思考中…</span>
-            </div>
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -327,7 +372,7 @@ export function AgentBuild() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".md,.txt,.docx"
+            accept=".md,.txt,.docx,text/markdown,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />

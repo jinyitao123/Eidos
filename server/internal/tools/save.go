@@ -132,6 +132,30 @@ func extractFlat(raw string) map[string]any {
 	return flat
 }
 
+// extractYAML tries to extract a YAML code block from Markdown-wrapped content.
+// If the content contains ```yaml ... ```, returns the inner YAML.
+// Otherwise returns the original content unchanged.
+func extractYAML(content string) string {
+	// Look for ```yaml or ``` fenced block
+	markers := []string{"```yaml\n", "```yml\n", "```\n"}
+	for _, marker := range markers {
+		start := strings.Index(content, marker)
+		if start == -1 {
+			continue
+		}
+		body := content[start+len(marker):]
+		end := strings.Index(body, "```")
+		if end == -1 {
+			continue
+		}
+		extracted := strings.TrimSpace(body[:end])
+		if extracted != "" {
+			return extracted
+		}
+	}
+	return content
+}
+
 func registerSaveOutput(router *mcp.Router, d *Deps) {
 	router.Register(mcp.ToolDef{
 		Name:        "save_output",
@@ -150,6 +174,9 @@ func registerSaveOutput(router *mcp.Router, d *Deps) {
 		if err := json.Unmarshal(args, &p); err != nil {
 			return mcp.ErrorResult("invalid arguments: " + err.Error())
 		}
+
+		// Try to extract YAML from fenced code block if present
+		p.Content = extractYAML(p.Content)
 
 		// Validate that content is valid YAML
 		var check any

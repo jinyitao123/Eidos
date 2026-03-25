@@ -22,6 +22,7 @@ func RegisterAll(router *mcp.Router, d *Deps) {
 	registerDeleteProject(router, d)
 
 	// T01-T10: ontology metadata tools
+	registerUploadDocument(router, d)
 	registerReadDocument(router, d)
 	registerQueryPublishedOntologies(router, d)
 	registerImportClass(router, d)
