@@ -293,7 +293,9 @@ export function ReviewReport() {
               fixLabel: String(i.fix_suggestion || i.fix_description || '修复'),
               autoFix: (i.auto_fixable as boolean) ?? false,
             }))
-            const mappedPass = parsed.passed_items || []
+            const mappedPass = (parsed.passed_items || []).map(p =>
+              typeof p === 'string' ? p : String((p as Record<string, unknown>).message || (p as Record<string, unknown>).text || JSON.stringify(p))
+            )
             setIssues(mappedIssues)
             setPassItems(mappedPass)
 
