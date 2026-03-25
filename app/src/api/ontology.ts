@@ -106,14 +106,19 @@ export async function fetchStageOutput(projectId: string, stage: string): Promis
 /** Parse YAML string to Ontology object */
 export function parseOntologyYaml(yamlContent: string): Ontology | null {
   try {
-    const parsed = yaml.load(yamlContent) as Ontology
+    let parsed = yaml.load(yamlContent) as Record<string, unknown>
     if (!parsed || typeof parsed !== 'object') return null
-    // Ensure arrays exist
-    parsed.classes = parsed.classes || []
-    parsed.relationships = parsed.relationships || []
-    parsed.rules = parsed.rules || []
-    parsed.actions = parsed.actions || []
-    return parsed
+    // Handle ontology: wrapper (S2 agent wraps output under "ontology:" key)
+    if ('ontology' in parsed && typeof parsed.ontology === 'object' && parsed.ontology !== null) {
+      parsed = parsed.ontology as Record<string, unknown>
+    }
+    // Handle rules: wrapper (S3 agent wraps output under "rules:" key)
+    const ont = parsed as unknown as Ontology
+    ont.classes = ont.classes || []
+    ont.relationships = ont.relationships || []
+    ont.rules = ont.rules || []
+    ont.actions = ont.actions || []
+    return ont
   } catch {
     return null
   }
@@ -142,9 +147,10 @@ function combineStages(stages: Record<string, string>): Ontology | null {
     }
   }
 
-  // rules_actions stage contains rules + actions
-  if (stages.rules_actions) {
-    const rules = parseOntologyYaml(stages.rules_actions)
+  // rules stage contains rules + actions (agent saves as "rules_actions" or "rules_design")
+  const rulesStage = stages.rules_actions || stages.rules_design
+  if (rulesStage) {
+    const rules = parseOntologyYaml(rulesStage)
     if (rules) {
       combined.rules = rules.rules || []
       combined.actions = rules.actions || []

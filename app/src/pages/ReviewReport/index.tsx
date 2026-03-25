@@ -274,17 +274,24 @@ export function ReviewReport() {
       const reviewYaml = await fetchStageOutput(projectId!, 'review_report')
       if (reviewYaml) {
         try {
-          const parsed = yaml.load(reviewYaml) as {
-            issues?: Array<{ type: string; text: string; detail?: string; fix_suggestion?: string; auto_fixable?: boolean }>
+          const raw = yaml.load(reviewYaml) as Record<string, unknown>
+          // S4 agent wraps under "report:", handle both formats
+          const parsed = (raw?.report ?? raw) as {
+            issues?: Array<Record<string, unknown>>
             passed_items?: string[]
+            summary?: Record<string, unknown>
           }
           if (parsed?.issues) {
+            // Map agent format {id, severity, message} → UI format {type, text}
+            const severityToType: Record<string, Issue['type']> = {
+              blocking: 'consistency', warning: 'completeness', suggestion: 'suggestion',
+            }
             const mappedIssues: Issue[] = (parsed.issues || []).map(i => ({
-              type: (i.type as Issue['type']) || 'suggestion',
-              text: i.text,
-              detail: i.detail || '',
-              fixLabel: i.fix_suggestion || '修复',
-              autoFix: i.auto_fixable ?? false,
+              type: severityToType[String(i.severity || '')] || (i.type as Issue['type']) || 'suggestion',
+              text: String(i.text || i.message || ''),
+              detail: String(i.detail || ''),
+              fixLabel: String(i.fix_suggestion || i.fix_description || '修复'),
+              autoFix: (i.auto_fixable as boolean) ?? false,
             }))
             const mappedPass = parsed.passed_items || []
             setIssues(mappedIssues)
