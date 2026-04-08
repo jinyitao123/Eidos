@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchProject, fetchOntology } from '../../api/ontology'
+import yaml from 'js-yaml'
+import { fetchProject, fetchOntology, fetchStageOutput } from '../../api/ontology'
 import { mcpCall } from '../../api/mcp'
 import type { Project, Ontology } from '../../types/ontology'
 import { ConfirmModal, AlertModal, Modal } from '../../components/Modal'
@@ -37,8 +38,15 @@ function buildStepsFromOntology(ontology: Ontology): PipelineStep[] {
   const rels = ontology.relationships || []
   const rules = ontology.rules || []
   const actions = ontology.actions || []
+  const metrics = ontology.metrics || []
+  const telemetry = ontology.telemetry || []
+  const functions = ontology.functions || []
   const totalAttrs = classes.reduce((sum, c) => sum + (c.attributes?.length || 0), 0)
-  const syncedAttrs = classes.reduce((sum, c) => sum + (c.attributes?.filter(a => a.graph_sync)?.length || 0), 0)
+
+  // MCP tool count: query per class + execute per action + metric tools + calc per function + telemetry (0 or 1) + metadata
+  const metricToolCount = metrics.length
+  const telemetryToolCount = telemetry.length > 0 ? 1 : 0
+  const totalTools = classes.length + actions.length + metricToolCount + functions.length + telemetryToolCount + 1
 
   return [
     {
@@ -48,12 +56,12 @@ function buildStepsFromOntology(ontology: Ontology): PipelineStep[] {
     },
     {
       name: STEP_NAMES[1], status: 'pending',
-      preview: `每个类生成 query + execute 工具`,
-      stats: `预计生成 ${classes.length * 2 + actions.length} 个 MCP 工具`,
+      preview: `query × ${classes.length} · execute × ${actions.length} · 指标 × ${metricToolCount} · 遥测 × ${telemetryToolCount} · 函数 × ${functions.length}`,
+      stats: `预计生成 ${totalTools} 个 MCP 工具`,
     },
     {
       name: STEP_NAMES[2], status: 'pending',
-      preview: `${syncedAttrs} 个属性需同步到图谱`,
+      preview: `${totalAttrs} 个属性同步到图谱`,
       stats: `节点标签 × ${classes.length} · 关系类型 × ${rels.length}`,
     },
     {
@@ -91,6 +99,7 @@ export function PublishPipeline() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [alertState, setAlertState] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null)
   const [viewingFile, setViewingFile] = useState<{ name: string; content: string } | null>(null)
+  const [hasBlockingIssues, setHasBlockingIssues] = useState(false)
 
   useEffect(() => {
     if (!projectId) return
@@ -102,6 +111,20 @@ export function PublishPipeline() {
           if (o) {
             setOntology(o)
             setSteps(buildStepsFromOntology(o))
+          }
+        })
+        .catch(() => {}),
+      // Check for blocking issues in review report
+      fetchStageOutput(projectId, 'review_report')
+        .then((report: string | null) => {
+          if (report && report.includes('blocking')) {
+            try {
+              const parsed = yaml.load(report) as Record<string, unknown>
+              const summary = parsed?.summary as Record<string, number> | undefined
+              if (summary && summary.blocking > 0) {
+                setHasBlockingIssues(true)
+              }
+            } catch { /* ignore */ }
           }
         })
         .catch(() => {}),
@@ -245,7 +268,7 @@ export function PublishPipeline() {
             <span className={styles.verVal}>{nextVersion}</span>
             {ontology && (
               <span className={styles.verDiff}>
-                {ontology.classes.length} 类 · {ontology.relationships.length} 关系 · {ontology.rules?.length || 0} 规则 · {ontology.actions?.length || 0} 动作
+                {ontology.classes.length} 类 · {ontology.relationships.length} 关系 · {ontology.metrics?.length || 0} 指标 · {ontology.telemetry?.length || 0} 遥测 · {ontology.rules?.length || 0} 规则 · {ontology.actions?.length || 0} 动作
               </span>
             )}
           </div>
@@ -255,9 +278,18 @@ export function PublishPipeline() {
           ) : (
             <>
               {!running && !allDone && (
-                <button className={styles.runBtn} onClick={handleRunPipeline} data-testid="run-pipeline-btn">
-                  {hasError ? '重新执行管道（7步）' : '执行管道（7步）'}
-                </button>
+                hasBlockingIssues ? (
+                  <div className={styles.blockingWarning}>
+                    审核报告存在阻断性问题，请先修复后再执行管道。
+                    <button className={styles.linkBtn} onClick={() => navigate(`/project/${projectId}/report`)}>
+                      查看审核报告
+                    </button>
+                  </div>
+                ) : (
+                  <button className={styles.runBtn} onClick={handleRunPipeline} data-testid="run-pipeline-btn">
+                    {hasError ? '重新执行管道（7步）' : '执行管道（7步）'}
+                  </button>
+                )
               )}
 
               <div className={styles.pipeline}>

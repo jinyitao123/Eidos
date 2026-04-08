@@ -8,12 +8,28 @@ import type { Project } from '../../types/ontology'
 import { ConfirmModal, AlertModal } from '../../components/Modal'
 import styles from './AgentBuild.module.css'
 
+interface ToolStatus {
+  name: string
+  label: string
+  status: 'running' | 'done' | 'error'
+}
+
+interface StepProgress {
+  label: string
+  detail?: string
+  status: 'pending' | 'running' | 'done' | 'error'
+}
+
 interface ChatMessage {
   role: 'user' | 'agent'
   agentId?: string
   agentName?: string
   content: string
   timestamp: string
+  stageId?: string
+  fullContent?: string
+  toolCalls?: ToolStatus[]
+  steps?: StepProgress[]
 }
 
 const STAGES = [
@@ -22,10 +38,6 @@ const STAGES = [
   { id: 'rules_actions', name: '规则设计', agent: 'rule-designer', color: '#534AB7' },
   { id: 'review_report', name: '审核', agent: 'ontology-reviewer', color: '#6B6560' },
 ]
-
-function stageIndex(stage: string) {
-  return STAGES.findIndex(s => s.id === stage)
-}
 
 export function AgentBuild() {
   const { projectId } = useParams()
@@ -46,27 +58,54 @@ export function AgentBuild() {
   const [rollbackConfirm, setRollbackConfirm] = useState<{ idx: number; name: string } | null>(null)
   const [alertState, setAlertState] = useState<{ message: string; type: 'error' } | null>(null)
 
+  // Stage output preview modal
+  const [previewContent, setPreviewContent] = useState<{ title: string; content: string } | null>(null)
+
+  function handleDownload(stageId: string, content: string) {
+    const blob = new Blob([content], { type: 'text/yaml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${stageId}.yaml`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const loadExistingOutputs = useCallback(async (proj: Project) => {
-    const idx = stageIndex(proj.current_stage)
+  const loadExistingOutputs = useCallback(async (_proj: Project) => {
     const confirmed = [false, false, false, false]
+    const loaded: ChatMessage[] = []
 
-    for (let i = 0; i < Math.min(idx, 4); i++) {
+    // Check ALL stages for saved outputs (not just up to current_stage)
+    for (let i = 0; i < STAGES.length; i++) {
       const content = await fetchStageOutput(projectId!, STAGES[i].id)
       if (content) {
         confirmed[i] = true
-        setMessages(prev => [...prev, {
+        // Show a summary with expandable full content
+        const preview = content.length > 500
+          ? content.slice(0, 500) + '\n...'
+          : content
+        const truncNote = content.length > 500
+          ? `\n\n*共 ${content.length} 字符，点击 👁 预览完整内容*`
+          : ''
+        loaded.push({
           role: 'agent',
           agentId: STAGES[i].agent,
           agentName: STAGES[i].name,
-          content: `${STAGES[i].name}已完成。输出已保存。`,
-          timestamp: new Date().toISOString(),
-        }])
+          content: `**${STAGES[i].name}已完成** ✅\n\n\`\`\`yaml\n${preview}\n\`\`\`${truncNote}`,
+          timestamp: new Date(Date.now() + i).toISOString(),
+          stageId: STAGES[i].id,
+          fullContent: content,
+        })
       }
     }
+    setMessages(loaded)
     setStageConfirmed(confirmed)
+    // Set current stage to the first unfinished stage, or last if all done
+    const firstUnfinished = confirmed.findIndex(c => !c)
+    setCurrentStage(firstUnfinished === -1 ? STAGES.length - 1 : firstUnfinished)
   }, [projectId])
 
   useEffect(() => {
@@ -75,34 +114,71 @@ export function AgentBuild() {
     fetchProject(projectId)
       .then(p => {
         setProject(p)
-        setCurrentStage(Math.max(0, stageIndex(p.current_stage)))
         loadExistingOutputs(p)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [projectId, loadExistingOutputs])
 
+  // Only auto-scroll when sending (not on initial load of existing outputs)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (sending) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, sending])
+
+  /** Prepend project_id so Agent passes it to every tool call. */
+  function withProjectContext(message: string): string {
+    if (!projectId) return message
+    if (message.includes(projectId)) return message
+    return `${message}\n\n重要：调用任何工具时，project_id 参数的值是 "${projectId}"。`
+  }
+
+  const TOOL_LABELS: Record<string, string> = {
+    list_documents: '获取文档列表',
+    read_document: '读取调研文档',
+    read_scene_analysis: '读取场景分析',
+    read_ontology_structure: '读取本体结构',
+    read_full_ontology_yaml: '读取完整本体',
+    query_published_ontologies: '查询已发布本体',
+    validate_yaml: '验证 YAML',
+    validate_rule_references: '验证规则引用',
+    save_output: '保存输出',
+    import_class: '导入共享类',
+    delegate: '委托任务',
+  }
 
   /** Stream an agent call, updating the last message incrementally. */
   async function callAgentStream(message: string): Promise<string> {
     const stage = STAGES[currentStage]
     const ts = new Date().toISOString()
 
-    // Add a placeholder agent message that we'll update with streamed content
     setMessages(prev => [...prev, {
       role: 'agent',
       agentId: stage.agent,
       agentName: stage.name,
       content: '',
       timestamp: ts,
+      toolCalls: [],
     }])
 
     let accumulated = ''
-    // Track tool calls as persistent blocks appended after text content
-    const toolLog: string[] = []
+    const tools: ToolStatus[] = []
+
+    const updateMsg = (content?: string, tc?: ToolStatus[]) => {
+      setMessages(prev => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        if (last && last.timestamp === ts) {
+          updated[updated.length - 1] = {
+            ...last,
+            content: content ?? last.content,
+            toolCalls: tc ?? last.toolCalls,
+          }
+        }
+        return updated
+      })
+    }
 
     const done = await weaveStream('/v1/chat', {
       agent: stage.agent,
@@ -111,69 +187,76 @@ export function AgentBuild() {
       profile: `project_id=${projectId}`,
     }, (evt) => {
       if (evt.event === 'chunk') {
-        const chunk = (evt.data.content as string) || ''
-        accumulated += chunk
-        setMessages(prev => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last && last.timestamp === ts) {
-            const toolSection = toolLog.length > 0 ? '\n\n---\n' + toolLog.join('\n') : ''
-            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
-          }
-          return updated
-        })
+        accumulated += (evt.data.content as string) || ''
+        updateMsg(accumulated, [...tools])
       } else if (evt.event === 'tool_call') {
         const name = evt.data.name as string
-        toolLog.push(`> ⏳ \`${name}\` 调用中…`)
-        setMessages(prev => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last && last.timestamp === ts) {
-            const toolSection = '\n\n---\n' + toolLog.join('\n')
-            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
-          }
-          return updated
-        })
+        // For repeated tools (like validate_yaml retries), update existing entry instead of adding new
+        const existing = tools.find(t => t.name === name && t.status === 'done')
+        if (existing) {
+          existing.status = 'running'
+          existing.label = TOOL_LABELS[name] || name
+        } else {
+          tools.push({ name, label: TOOL_LABELS[name] || name, status: 'running' })
+        }
+        updateMsg(accumulated, [...tools])
       } else if (evt.event === 'tool_result') {
         const name = (evt.data.name as string) || ''
         const status = evt.data.status as string
-        // Replace the last matching "calling" entry with result
-        for (let i = toolLog.length - 1; i >= 0; i--) {
-          if (toolLog[i].includes(`\`${name}\``) && toolLog[i].includes('⏳')) {
-            const icon = status === 'error' ? '❌' : '✅'
-            toolLog[i] = `> ${icon} \`${name}\` ${status === 'error' ? '失败' : '完成'}`
+        for (let i = tools.length - 1; i >= 0; i--) {
+          if (tools[i].name === name && tools[i].status === 'running') {
+            tools[i] = { ...tools[i], status: status === 'error' ? 'error' : 'done' }
             break
           }
         }
-        setMessages(prev => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last && last.timestamp === ts) {
-            const toolSection = '\n\n---\n' + toolLog.join('\n')
-            updated[updated.length - 1] = { ...last, content: accumulated + toolSection }
-          }
-          return updated
-        })
+        updateMsg(accumulated, [...tools])
       }
     })
 
-    // Store session_id
     if (done.session_id) {
       sessionIds.current[currentStage] = done.session_id as string
     }
 
-    // Use the final output from done event (most complete)
-    const finalOutput = (done.output as string) || accumulated || '(无响应)'
+    const rawOutput = (done.output as string) || accumulated || '(无响应)'
+    const finalOutput = cleanAgentOutput(rawOutput)
+
+    // Add fullContent + stageId so preview/download buttons work on new messages too
     setMessages(prev => {
       const updated = [...prev]
       const last = updated[updated.length - 1]
       if (last && last.timestamp === ts) {
-        updated[updated.length - 1] = { ...last, content: finalOutput }
+        updated[updated.length - 1] = {
+          ...last,
+          content: finalOutput,
+          toolCalls: [...tools],
+          stageId: STAGES[currentStage]?.id,
+          fullContent: rawOutput,
+        }
       }
       return updated
     })
 
     return finalOutput
+  }
+
+  /** Remove Agent's internal thinking noise from output */
+  function cleanAgentOutput(text: string): string {
+    // Remove sentences that expose internal thinking
+    const noisePatterns = [
+      /让我[检查修正修复重新尝试简化].*?[：。\n]/g,
+      /我需要[修正修复检查调整].*?[：。\n]/g,
+      /我看到验证.*?[：。\n]/g,
+      /看起来验证.*?[：。\n]/g,
+      /我注意到.*?不存在.*?[。\n]/g,
+      /可能.*?字段需要.*?[。\n]/g,
+    ]
+    let cleaned = text
+    for (const p of noisePatterns) {
+      cleaned = cleaned.replace(p, '')
+    }
+    // Collapse multiple newlines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n')
+    return cleaned.trim()
   }
 
   function addAgentMessage(content: string) {
@@ -218,7 +301,7 @@ export function AgentBuild() {
       }
 
       await callAgentStream(
-        `项目ID: ${projectId}\n文档ID: ${docId}\n\n请分析以下调研文档:\n\n${text.slice(0, 10000)}`
+        withProjectContext(`已上传文档「${file.name}」(document_id=${docId})。请调用 list_documents 获取文档列表，然后用 read_document 读取全文并开始分析。`)
       )
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -244,7 +327,7 @@ export function AgentBuild() {
 
     setSending(true)
     try {
-      await callAgentStream(msg)
+      await callAgentStream(withProjectContext(msg))
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err)
       setAlertState({ message: `Agent 调用失败: ${errMsg}`, type: 'error' })
@@ -254,29 +337,201 @@ export function AgentBuild() {
     }
   }
 
-  async function handleConfirmStage() {
-    if (currentStage >= STAGES.length - 1) {
-      // Last stage (review), navigate to visual review
-      navigate(`/project/${projectId}/graph`)
-      return
+  /**
+   * S2 multi-step orchestration: single bubble with progress list.
+   * Step 1: List classes from S1 entities
+   * Step 2-N: Design attributes for each class
+   * Step N+1: Design relationships
+   * Final: Merge all YAML and save_output
+   */
+  async function runS2MultiStep(pid: string) {
+    const stage = STAGES[1] // ontology_structure
+    const ts = new Date().toISOString()
+
+    // Create a single message with step progress
+    const steps: StepProgress[] = [
+      { label: '读取场景分析', status: 'running' },
+    ]
+    setMessages(prev => [...prev, {
+      role: 'agent', agentId: stage.agent, agentName: stage.name,
+      content: '', timestamp: ts, steps: [...steps],
+    }])
+
+    const updateSteps = (s: StepProgress[], content?: string) => {
+      setMessages(prev => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        if (last && last.timestamp === ts) {
+          updated[updated.length - 1] = { ...last, steps: [...s], ...(content !== undefined ? { content } : {}) }
+        }
+        return updated
+      })
     }
 
-    // Advance locally — do NOT call save_output here,
-    // as it would overwrite the agent's real output.
+    setSending(true)
+    try {
+      // Step 1: Get class list from S2
+      const s2Agent = 'ontology-architect'
+      const s2Idx = 1
 
+      const step1Output = await callAgentStreamSilent(
+        `调用 read_scene_analysis(project_id="${pid}")，然后只列出所有类。输出格式：\nclasses:\n  - id: xxx\n    name: 中文名\n    first_citizen: true/false\n    phase: alpha/beta\n\n不要设计属性，只要类列表。`,
+        s2Agent, s2Idx
+      )
+      steps[0].status = 'done'
+
+      // Parse class names from output
+      const classMatches = [...step1Output.matchAll(/- id:\s*(\S+)/g)]
+      const classIds = classMatches.map(m => m[1]).filter(Boolean)
+      if (classIds.length === 0) {
+        // Fallback: try name matches
+        const nameMatches = [...step1Output.matchAll(/name:\s*(.+)/g)]
+        classIds.push(...nameMatches.map(m => m[1].trim()).slice(0, 10))
+      }
+
+      // Add steps for each class + relationships + save
+      for (const cls of classIds) {
+        steps.push({ label: cls, status: 'pending' })
+      }
+      steps.push({ label: '关系设计', status: 'pending' })
+      steps.push({ label: '保存输出', status: 'pending' })
+      updateSteps(steps, `识别到 ${classIds.length} 个类`)
+
+      // Step 2-N: Design each class attributes
+      const classYamls: string[] = []
+      for (let i = 0; i < classIds.length; i++) {
+        steps[i + 1].status = 'running'
+        updateSteps(steps)
+
+        const classOutput = await callAgentStreamSilent(
+          `设计 ${classIds[i]} 的完整属性列表。输出 YAML 格式：\n- id: xxx\n  name: 中文名\n  type: string/integer/decimal/boolean/date/datetime/enum\n  required: true/false\n  graph_sync: true/false\n  phase: alpha/beta\n\n如果是派生属性加 derived: true 和 formula。只输出属性列表，不要其他内容。`,
+          s2Agent, s2Idx
+        )
+        classYamls.push(classOutput)
+
+        // Count attributes
+        const attrCount = (classOutput.match(/- id:/g) || []).length
+        steps[i + 1].status = 'done'
+        steps[i + 1].detail = `${attrCount} 个属性`
+        updateSteps(steps)
+      }
+
+      // Step N+1: Design relationships
+      const relIdx = classIds.length + 1
+      steps[relIdx].status = 'running'
+      updateSteps(steps)
+
+      const relOutput = await callAgentStreamSilent(
+        `设计所有类之间的关系。输出 YAML 格式：\nrelationships:\n  - id: xxx\n    name: 中文名\n    from: class_id\n    to: class_id\n    cardinality: 1:N/N:1/N:M\n    phase: alpha/beta\n\n只输出关系列表。`,
+        s2Agent, s2Idx
+      )
+
+      const relCount = (relOutput.match(/- id:/g) || []).length
+      steps[relIdx].status = 'done'
+      steps[relIdx].detail = `${relCount} 个关系`
+      updateSteps(steps)
+
+      // Final: merge and save
+      const saveIdx = classIds.length + 2
+      steps[saveIdx].status = 'running'
+      updateSteps(steps)
+
+      // Ask S2 to merge everything and save
+      await callAgentStreamSilent(
+        `将所有设计合并为完整的本体 YAML 并保存。调用 save_output(project_id="${pid}", stage="ontology_structure", content=合并后的完整YAML)。\n\n合并说明：\n- 类列表：\n${step1Output}\n\n请生成完整的 ontology YAML（包含 ontology.id, ontology.name, classes 含属性, relationships）并保存。`,
+        s2Agent, s2Idx
+      )
+
+      steps[saveIdx].status = 'done'
+      updateSteps(steps, `本体架构设计完成：${classIds.length} 个类，${relCount} 个关系`)
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('runS2MultiStep error:', err)
+      const running = steps.find(s => s.status === 'running')
+      if (running) running.status = 'error'
+      updateSteps(steps, `设计失败: ${errMsg}`)
+      // Also show alert so user sees it
+      setAlertState({ message: `本体架构设计失败: ${errMsg}`, type: 'error' })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /** Call agent without adding a new message bubble — used by multi-step orchestration. */
+  async function callAgentStreamSilent(message: string, agentName?: string, stageIdx?: number): Promise<string> {
+    const idx = stageIdx ?? currentStage
+    const agent = agentName ?? STAGES[idx].agent
+    let accumulated = ''
+
+    const done = await weaveStream('/v1/chat', {
+      agent,
+      session_id: sessionIds.current[idx] || '',
+      message: withProjectContext(message),
+      profile: `project_id=${projectId}`,
+    }, (evt) => {
+      if (evt.event === 'chunk') {
+        accumulated += (evt.data.content as string) || ''
+      }
+    })
+
+    if (done.session_id) {
+      sessionIds.current[idx] = done.session_id as string
+    }
+
+    return (done.output as string) || accumulated || ''
+  }
+
+  async function handleConfirmStage() {
+    const pid = projectId!
+
+    // Determine which stage to run next
+    let targetIdx: number
+    if (stageConfirmed[currentStage]) {
+      // Current stage done → advance to next
+      if (currentStage >= STAGES.length - 1) {
+        navigate(`/project/${projectId}/graph`)
+        return
+      }
+      targetIdx = currentStage + 1
+    } else {
+      // Current stage not done → run it
+      targetIdx = currentStage
+    }
+
+    // Mark previous stages as confirmed
     const newConfirmed = [...stageConfirmed]
-    newConfirmed[currentStage] = true
+    for (let i = 0; i < targetIdx; i++) newConfirmed[i] = true
     setStageConfirmed(newConfirmed)
-    setCurrentStage(currentStage + 1)
+    setCurrentStage(targetIdx)
 
-    const nextStage = STAGES[currentStage + 1]
-    setMessages(prev => [...prev, {
-      role: 'agent',
-      agentId: nextStage.agent,
-      agentName: nextStage.name,
-      content: `${nextStage.name}阶段已启动。请发送消息开始。`,
-      timestamp: new Date().toISOString(),
-    }])
+    const targetStage = STAGES[targetIdx]
+
+    if (targetStage.id === 'ontology_structure') {
+      // Don't await — let it run in background so UI updates immediately
+      runS2MultiStep(pid).catch(err => {
+        console.error('S2 multi-step failed:', err)
+        setAlertState({ message: `本体架构设计失败: ${err instanceof Error ? err.message : String(err)}`, type: 'error' })
+        setSending(false)
+      })
+      return
+    } else {
+      const autoPrompts: Record<string, string> = {
+        scene_analysis: `开始场景分析。`,
+        rules_actions: `调用 read_scene_analysis(project_id="${pid}") 和 read_ontology_structure(project_id="${pid}")，然后设计规则和动作。完成后 save_output(project_id="${pid}", stage="rules_actions", content=YAML)。`,
+        review_report: `调用 read_full_ontology_yaml(project_id="${pid}")，审核本体并生成报告。完成后 save_output(project_id="${pid}", stage="review_report", content=YAML)。`,
+      }
+      const autoMsg = autoPrompts[targetStage.id] || `开始${targetStage.name}。`
+      setSending(true)
+      try {
+        await callAgentStream(withProjectContext(autoMsg))
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        addAgentMessage(`自动启动失败: ${errMsg}`)
+      } finally {
+        setSending(false)
+      }
+    }
   }
 
   function handleClickStage(idx: number) {
@@ -306,10 +561,10 @@ export function AgentBuild() {
         {STAGES.map((stage, i) => (
           <div
             key={stage.id}
-            className={`${styles.progressStage} ${i === currentStage ? styles.progressCurrent : ''} ${stageConfirmed[i] ? styles.progressDone : ''}`}
+            className={`${styles.progressStage} ${stageConfirmed[i] ? styles.progressDone : i === currentStage ? styles.progressCurrent : ''}`}
             onClick={() => handleClickStage(i)}
           >
-            <div className={styles.progressDot} style={{ background: i <= currentStage ? stage.color : undefined }} />
+            <div className={styles.progressDot} style={{ background: stageConfirmed[i] ? '#0F6E56' : i === currentStage ? stage.color : undefined }} />
             <span className={styles.progressLabel}>{stage.name}</span>
             {i < STAGES.length - 1 && (
               <div className={`${styles.progressLine} ${stageConfirmed[i] ? styles.progressLineDone : ''}`} />
@@ -343,12 +598,59 @@ export function AgentBuild() {
               </div>
             )}
             <div className={styles.messageContent}>
+              {msg.fullContent && (
+                <div className={styles.stageActions}>
+                  <button
+                    className={styles.stageActionBtn}
+                    title="预览完整内容"
+                    onClick={() => setPreviewContent({ title: msg.agentName || '', content: msg.fullContent! })}
+                  >
+                    👁
+                  </button>
+                  <button
+                    className={styles.stageActionBtn}
+                    title="下载 YAML"
+                    onClick={() => handleDownload(msg.stageId || 'output', msg.fullContent!)}
+                  >
+                    ⬇
+                  </button>
+                </div>
+              )}
               {msg.role === 'agent' ? (
-                msg.content ? (
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                ) : (
-                  <span className={styles.thinking}>思考中…</span>
-                )
+                <>
+                  {msg.content ? (
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  ) : (
+                    <span className={styles.thinking}>{STAGES[currentStage]?.name || 'Agent'} 正在处理中…</span>
+                  )}
+                  {msg.steps && msg.steps.length > 0 && (
+                    <div className={styles.toolList}>
+                      {msg.steps.map((step, si) => (
+                        <div key={si} className={`${styles.toolItem} ${styles[`tool_${step.status}`]}`}>
+                          <span className={styles.toolIcon}>
+                            {step.status === 'running' ? '◆' : step.status === 'done' ? '✓' : step.status === 'error' ? '✗' : '○'}
+                          </span>
+                          <span className={styles.toolLabel}>
+                            {step.label}
+                            {step.detail && <span className={styles.toolDetail}> ({step.detail})</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {msg.toolCalls && msg.toolCalls.length > 0 && (
+                    <div className={styles.toolList}>
+                      {msg.toolCalls.map((tc, ti) => (
+                        <div key={ti} className={`${styles.toolItem} ${styles[`tool_${tc.status}`]}`}>
+                          <span className={styles.toolIcon}>
+                            {tc.status === 'running' ? '◆' : tc.status === 'done' ? '✓' : '✗'}
+                          </span>
+                          <span className={styles.toolLabel}>{tc.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : (
                 msg.content.split('\n').map((line, j) => (
                   <span key={j}>{line}{j < msg.content.split('\n').length - 1 && <br />}</span>
@@ -362,10 +664,22 @@ export function AgentBuild() {
 
       {/* Bottom bar */}
       <div className={styles.bottomBar}>
-        {messages.length > 0 && !stageConfirmed[currentStage] && !sending && (
-          <button className={styles.confirmBtn} onClick={handleConfirmStage}>
-            {currentStage < STAGES.length - 1 ? `确认，进入${STAGES[currentStage + 1].name}` : '进入可视化审核'}
-          </button>
+        {messages.length > 0 && !sending && (
+          stageConfirmed[currentStage] ? (
+            currentStage < STAGES.length - 1 ? (
+              <button className={styles.confirmBtn} onClick={handleConfirmStage}>
+                确认，进入{STAGES[currentStage + 1].name}
+              </button>
+            ) : (
+              <button className={styles.confirmBtn} onClick={handleConfirmStage}>
+                进入可视化审核
+              </button>
+            )
+          ) : (
+            <button className={styles.confirmBtn} onClick={handleConfirmStage}>
+              开始{STAGES[currentStage].name}
+            </button>
+          )
         )}
         <div className={styles.inputRow}>
           <button className={styles.attachBtn} onClick={handleUploadDocument} title="上传文档">📎</button>
@@ -386,7 +700,7 @@ export function AgentBuild() {
             data-testid="chat-input"
           />
           <button className={styles.sendBtn} onClick={handleSend} disabled={sending || !input.trim()}>
-            {sending ? '…' : '发送'}
+            {sending ? '处理中' : '发送'}
           </button>
         </div>
       </div>
@@ -406,6 +720,19 @@ export function AgentBuild() {
         type={alertState?.type}
         onClose={() => setAlertState(null)}
       />
+
+      {/* Stage output preview modal */}
+      {previewContent && (
+        <div className={styles.previewOverlay} onClick={() => setPreviewContent(null)}>
+          <div className={styles.previewModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.previewHeader}>
+              <span className={styles.previewTitle}>{previewContent.title} — 完整输出</span>
+              <button className={styles.previewClose} onClick={() => setPreviewContent(null)}>×</button>
+            </div>
+            <pre className={styles.previewCode}>{previewContent.content}</pre>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

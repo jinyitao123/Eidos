@@ -19,8 +19,9 @@ ontology-toolkit/
 │   ├── 03-agent-definitions.md    # Four builder agents: S1 scene-analyst, S2 ontology-architect, S3 rule-designer, S4 ontology-reviewer
 │   ├── 04-page-designs.md         # Seven pages: project list, agent dialog, graph review, class editor, rule editor, review report, publish pipeline
 │   ├── 05-pipeline-spec.md        # Seven-step code generator spec
-│   ├── 06-mcp-tools-spec.md       # Ontology tools MCP server (10 tools)
-│   └── 07-palantir-alignment.md   # Palantir methodology alignment and required fixes
+│   ├── 06-mcp-tools-spec.md       # Ontology tools MCP server (10 ontology + 6 graph query tools)
+│   ├── 07-palantir-alignment.md   # Palantir methodology alignment and required fixes
+│   └── 08-metric-semantics-analysis.md  # Metric semantics analysis (why metrics need ontology-level definition)
 ├── server/                        # MCP tool server (Go)
 │   ├── cmd/ontologyserver/        # Entry point
 │   ├── internal/
@@ -87,6 +88,7 @@ All design decisions are documented in `docs/`. When in doubt, `docs/` wins over
 - Pipeline spec: `docs/05-pipeline-spec.md`
 - MCP tools: `docs/06-mcp-tools-spec.md`
 - Palantir alignment: `docs/07-palantir-alignment.md`
+- Metric semantics: `docs/08-metric-semantics-analysis.md`
 
 ## Architecture
 
@@ -102,8 +104,8 @@ Weave API (:8080)
   → S1-S4 registered with MCPServers: [{URL: "http://ontology-mcp:9091"}]
 
 Ontology MCP Server (:9091)
-  → 16 tools (10 ontology + 6 graph query)
-  → PostgreSQL (ontology schema) + Neo4j (graph queries)
+  → 16 tools (10 ontology + 6 semantic graph query)
+  → PostgreSQL (ontology schema) + graph data service (semantic graph queries)
 
 Pipeline CLI (Go binary)
   → Reads ontology.yaml
@@ -163,19 +165,19 @@ npm run lint
 
 ## Core Concepts
 
-### Ontology YAML is the single source of truth
+### Ontology YAML is a semantic contract
 
-Everything downstream is generated from it. Never hand-edit generated code — edit the YAML and re-run the pipeline.
+Ontology YAML defines **what things are** and **what they mean** — not how to store or how to compute. It is the shared language between heterogeneous data sources and AI agents. Storage (PG, Neo4j, time-series DB), computation (metric engines, rule engines), and connectivity (IoT device models, data platforms) are handled by specialized services. Everything downstream is generated from the YAML. Never hand-edit generated code — edit the YAML and re-run the pipeline.
 
 ### Three-stage workflow: Agent Build → Human Review → Pipeline Generate
 
 1. **Agent Build**: Four agents (S1→S2→S3→S4) run sequentially in Weave. Each agent's output is saved via `save_output` tool. User must confirm before next agent starts.
 2. **Human Review**: Visual interface for reviewing and editing the generated YAML. Graph view, class editor, rule editor, audit report.
-3. **Pipeline Generate**: Deterministic template-based code generation. No LLM. Seven steps producing seven outputs.
+3. **Pipeline Generate**: Deterministic template-based code generation. No LLM. Four core steps (MCP tool interface, Agent config, rule engine config, frontend types) + optional storage plugins (PG, Neo4j, connector).
 
 ### Deterministic pipeline, no LLM
 
-The pipeline generators use Go `text/template`. They are deterministic — same input always produces same output. This is deliberate: infrastructure code (DDL, CRUD, schema) must be 100% reliable. LLM hallucination is unacceptable here.
+The pipeline generators use Go `text/template`. They are deterministic — same input always produces same output. This is deliberate: semantic interface code must be 100% reliable. LLM hallucination is unacceptable here. The pipeline is a "semantic glue generator" — it produces interfaces that agents and applications use, not infrastructure code directly.
 
 ### Four builder agents are internal tools, not user-facing
 
@@ -188,14 +190,34 @@ S1-S4 are registered in Weave as `type: internal_tool` with `visibility: ontolog
 - Class IDs are singular (`inventory_position`, not `inventory_positions`). PG table names are pluralized by the generator.
 - Exactly one class has `first_citizen: true` per ontology
 - `phase`: alpha (Day-1 required), beta (3-6 months), full (12+ months)
-- `graph_sync: true` means the attribute is synced to Neo4j. Decision criteria: does the Agent need this attribute during graph traversal for filtering? If yes → sync. If display-only → don't sync.
 - `configurable: true` means the parameter appears in the business app's admin settings page (not in Weave).
+- YAML top-level nodes: `classes`, `relationships`, `metrics`, `telemetry`, `rules`, `actions`, `functions`, `interfaces` (beta), `security` (beta)
+
+### Derived attributes vs metrics
+
+- **Derived**: single-entity, fixed formula, attached to a class (e.g., `safety_gap = safety_stock - current_qty`)
+- **Metrics**: cross-entity aggregation with independent business definition, top-level `metrics` node (e.g., `stale_ratio`, `inventory_quadrant`)
+- Metric kinds: `aggregate` (cross-entity aggregation), `composite` (weighted multi-metric), `classification` (bucket assignment)
+- Metric status: `implemented` (has tool), `designed` (spec only), `undefined` (no calculation method yet)
+
+### Telemetry (遥测数据流)
+
+- Telemetry defines continuous observable data streams from entities (sensor readings, device status)
+- Each telemetry has semantic anchors: `normal_range`, `warning_threshold`, `alert_threshold`, `reference_standard`
+- `context_strategy` prevents context window explosion: defines default_window, max_window, default_aggregation, default_granularity
+- Agent never reads raw data points — always aggregated summaries via `query_telemetry` tool
+- Real-time alerting is handled by rules engine, not by Agent
 
 ### Derived attribute formulas
 - Same-class reference: `safety_stock - available_qty`
 - Cross-relationship reference: `[tracks].unit_price` (relationship ID in brackets)
 - Aggregation: `SUM([located_in].inventory_value)`
 - Time calculation: `DATEDIFF(days, last_consumed_date, NOW())`
+
+### Functions
+
+- Functions define **decision-assistance** capabilities only (e.g., assess procurement priority), not metric calculations
+- No `implementation` field — YAML defines semantics (inputs, outputs, purpose), implementation is in the MCP tool server
 
 ### MCP protocol
 JSON-RPC 2.0 over HTTP POST to `:9091/`. Two methods: `tools/list` and `tools/call`. Same protocol as the spare parts MCP server.
@@ -243,9 +265,9 @@ Tasks:
 - Register S1-S4 in Weave as internal_tool agents
 - Write agent system prompts (based on `docs/03-agent-definitions.md`)
 - Build seven frontend pages (based on `docs/04-page-designs.md`)
-- Implement remaining pipeline generators (Neo4j, Agent Config, Frontend Types, Rule Engine, Connector Template)
+- Implement remaining pipeline core steps (Agent Config, Rule Engine Config, Frontend Types) and optional plugins (PG, Neo4j, Connector)
 
-**Validation criterion**: Upload the spare parts research document → S1-S4 produce a YAML that matches `docs/02-spare-parts-ontology.yaml` in structure (class names, relationship names, rule IDs). Human reviews in the visual interface. Publish → pipeline generates all seven outputs.
+**Validation criterion**: Upload the spare parts research document → S1-S4 produce a YAML that matches `docs/02-spare-parts-ontology.yaml` in structure (class names, relationship names, rule IDs, metric IDs). Human reviews in the visual interface. Publish → pipeline generates all outputs.
 
 ### Phase 3: Second scenario validation
 
@@ -265,7 +287,8 @@ Tasks:
 - **Pipeline is deterministic**: No randomness, no LLM calls, no network calls in the pipeline. Same YAML → same output, every time.
 - **User confirmation gates**: Every agent stage requires explicit user confirmation before the next agent starts. Never auto-advance.
 - **Blocking vs non-blocking checks**: Consistency issues (C-class in S4's audit) block publishing. Completeness (P-class) and optimization (O-class) suggestions do not block.
-- **Incremental generation**: When publishing a new version, the pipeline must generate ALTER TABLE (not DROP+CREATE). Destructive changes (drop column, change type) require human confirmation in the publish pipeline UI.
+- **Incremental generation**: When publishing a new version, storage plugins must generate ALTER TABLE (not DROP+CREATE). Destructive changes (drop column, change type) require human confirmation in the publish pipeline UI.
+- **Ontology is pure semantics**: No storage fields (`graph_sync`, `graph_config`, `connector_hints`) in YAML. No `implementation` field on functions. Storage and computation are external concerns.
 
 ## Palantir Alignment Reminders
 
@@ -278,4 +301,4 @@ Three things that must be implemented in alpha (see `docs/07-palantir-alignment.
 Three things deferred to beta:
 - M04: Interfaces (abstract parent classes)
 - M05: Dynamic Security (object-level + attribute-level RLS)
-- M06: Full Functions implementation (sql/go/agent_delegated)
+- M06: Functions semantic definition (decision-assistance capabilities)

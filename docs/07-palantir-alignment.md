@@ -14,12 +14,13 @@
 | 确定性梯度建模 | 按确定性高低分层 | 规则处理确定性，Agent 处理不确定性 | 完全对齐 |
 | AI 接入三步 | 元数据暴露→工具封装→按需检索 | YAML→MCP 工具→Function Calling | 完全对齐 |
 | 写回机制 | Action 执行结果反馈回本体 | actions.writes + triggers_after | 完全对齐 |
-| Functions | 复杂只读逻辑封装 | functions 字段（已补充） | 已补充 |
+| Functions | 复杂只读逻辑封装 | functions 字段（决策辅助语义定义，无 implementation） | 已对齐（beta 实现） |
 | Interfaces/多态 | 抽象父类 | interfaces 字段（已预留，beta） | 已预留 |
 | Dynamic Security | 三级权限控制 | security 字段（已预留，beta） | 已预留 |
 | 决策日志 | 决策是可分析的本体对象 | decision_log 类 + actions.decision_log 标记 | 已补充 |
 | 元数据索引 | "给 AI 一本能力目录" | query_ontology_metadata 工具 | 已补充 |
-| 混合存储 | 核心在本体，长尾留源系统 | PG + Neo4j 双存储，快照不入图谱 | 对齐 |
+| 指标语义化 | 指标是可度量的本体概念 | metrics 顶层节点（aggregate/composite/classification） | 完全对齐 |
+| 语义契约定位 | 本体定义语义，存储交给专门服务 | Ontology YAML 纯语义，PG/Neo4j/IoT 由插件或专门服务负责 | 完全对齐（已明确定位） |
 
 ---
 
@@ -35,7 +36,7 @@
 ```json
 {
   "ontology": "spare_parts",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "classes": [
     { "id": "inventory_position", "name": "库存头寸", "first_citizen": true, "queryable": true, "tool": "query_inventory" }
   ],
@@ -46,7 +47,11 @@
     { "id": "R01", "name": "安全库存预警", "trigger": "after A01,A02" }
   ],
   "functions": [
-    { "id": "calc_consumption_trend", "name": "计算消耗趋势", "tool": "calc_consumption_trend" }
+    { "id": "assess_procurement_priority", "name": "评估采购紧迫性", "tool": "assess_procurement_priority" }
+  ],
+  "metrics": [
+    { "id": "stale_ratio", "name": "呆滞率", "kind": "aggregate", "status": "implemented", "tool": "query_stale_ratio" },
+    { "id": "inventory_quadrant", "name": "库存结构四象限", "kind": "classification", "status": "designed", "tool": null }
   ]
 }
 ```
@@ -81,18 +86,17 @@
 
 **设计：** 见 01-ontology-yaml-spec.md 中的 security 字段。
 
-**典型场景：** 工段 A 的库管员不应看到工段 B 的库存数据。实现为 PG 的 Row Level Security（RLS）策略，由管道生成器从 security.object_level 自动生成。
+**典型场景：** 工段 A 的库管员不应看到工段 B 的库存数据。语义层定义访问控制规则，具体实现由存储层（如 PG 的 Row Level Security）负责。
 
-### M06: Functions 完整实现
+### M06: Functions 语义定义
 
 **来源：** Palantir 七大能力元素中的 Functions
 
-**设计：** 见 01-ontology-yaml-spec.md 中的 functions 字段和 02 样板中的三个函数定义。
+**设计：** 见 01-ontology-yaml-spec.md 中的 functions 字段和 02 样板中的函数定义。
 
-**实现：**
-- `implementation: sql` → 管道生成器将 SQL 片段包装为 MCP 只读工具
-- `implementation: go` → 生成 Go 函数骨架，开发者填充逻辑
-- `implementation: agent_delegated` → 生成一个工具壳，内部调用 Weave Agent API 让 LLM 推理
+**定位调整：** Functions 仅定义决策辅助类的复杂只读逻辑的语义（输入、输出、purpose），不包含实现方式（`implementation` 字段已移除）。具体实现由应用层的 MCP 工具服务负责。这符合"本体是语义契约"的定位——本体定义"需要什么判断能力"，不定义"怎么实现判断"。
+
+**典型场景：** `assess_procurement_priority` 函数定义了"评估采购紧迫性"这个判断能力的语义（需要什么输入、返回什么结论），但不规定是用 SQL 查询、Go 算法还是 LLM 推理来实现。
 
 ---
 
@@ -123,3 +127,13 @@
 **我们的选择：** Agent 做初稿，人做审核
 
 **理由：** 完全契合 Palantir 的理念——本体需要业务理解，AI 可以加速但不能替代。S1-S4 四个 Agent 的输出都要经过人确认才进入下一步。Agent 降低的是重复劳动（翻译调研文档为结构化定义），不是判断责任。
+
+### D04: 本体是语义契约，不管存储和计算
+
+**Palantir 参考中提到：** 本体模型与存储层紧密集成（Phonograph 是 Palantir 自研的存储引擎）
+
+**我们的选择：** Ontology YAML 纯定义语义——"世界长什么样"和"怎么衡量这个世界"。存储（PG、Neo4j、时序库）、计算（指标引擎、规则引擎）、连接（IoT 设备模型、数据中台）均由专门的服务负责。
+
+**理由：** Palantir 有自己的一体化平台（Foundry + Phonograph + Pipeline Builder），所以本体和存储可以深度耦合。我们面对的是异构技术栈——不同客户用不同的数据库、不同的 IoT 平台、不同的数据中台。将本体定义为纯语义契约，使得同一个本体定义可以在不同技术栈上实现，本体成为"各种数据源和 Agent 之间的共同语言"。
+
+管道生成器从"基础设施代码生成器"重新定位为"语义胶水生成器"——核心 4 步生成 Agent 可直接使用的语义接口（MCP 工具接口、Agent 配置、规则配置、前端类型），可选存储插件（PG、Neo4j、Connector）按需生成。

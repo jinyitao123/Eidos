@@ -79,6 +79,7 @@ export async function fetchStageOutput(projectId: string, stage: string): Promis
   const toolMap: Record<string, string> = {
     scene_analysis: 'read_scene_analysis',
     ontology_structure: 'read_ontology_structure',
+    rules_actions: 'read_rules_actions',
     review_report: 'read_review_report',
   }
 
@@ -109,10 +110,20 @@ export function parseOntologyYaml(yamlContent: string): Ontology | null {
     let parsed = yaml.load(yamlContent) as Record<string, unknown>
     if (!parsed || typeof parsed !== 'object') return null
     // Handle ontology: wrapper (S2 agent wraps output under "ontology:" key)
+    // Merge wrapper content into top level rather than replacing, since
+    // the full YAML may have classes/relationships at top level and
+    // rules/actions inside the ontology: wrapper
     if ('ontology' in parsed && typeof parsed.ontology === 'object' && parsed.ontology !== null) {
-      parsed = parsed.ontology as Record<string, unknown>
+      const wrapper = parsed.ontology as Record<string, unknown>
+      for (const [k, v] of Object.entries(wrapper)) {
+        if (!(k in parsed) || parsed[k] == null || (Array.isArray(parsed[k]) && (parsed[k] as unknown[]).length === 0)) {
+          parsed[k] = v
+        }
+      }
+      delete parsed.ontology
     }
-    // Handle rules: wrapper (S3 agent wraps output under "rules:" key)
+    // Remove legacy fields
+    delete parsed.graph_config
     const ont = parsed as unknown as Ontology
     ont.classes = ont.classes || []
     ont.relationships = ont.relationships || []
@@ -135,7 +146,7 @@ function combineStages(stages: Record<string, string>): Ontology | null {
     actions: [],
   }
 
-  // ontology_structure stage contains classes + relationships
+  // ontology_structure stage contains classes + relationships + metrics + telemetry + functions
   if (stages.ontology_structure) {
     const structure = parseOntologyYaml(stages.ontology_structure)
     if (structure) {
@@ -143,7 +154,9 @@ function combineStages(stages: Record<string, string>): Ontology | null {
       combined.name = structure.name || combined.name
       combined.classes = structure.classes
       combined.relationships = structure.relationships
-      combined.graph_config = structure.graph_config
+      combined.metrics = structure.metrics
+      combined.telemetry = structure.telemetry
+      combined.functions = structure.functions
     }
   }
 

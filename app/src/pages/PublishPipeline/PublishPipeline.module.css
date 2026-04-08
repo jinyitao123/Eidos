@@ -39,6 +39,8 @@
 
 .runBtn { font-size: 13px; padding: 8px 20px; border: none; border-radius: var(--radius-md); background: var(--color-text-primary); color: var(--color-bg-primary); cursor: pointer; margin-bottom: 16px; }
 .runBtn:hover { opacity: 0.9; }
+.blockingWarning { font-size: 13px; color: #c83232; padding: 10px 14px; border: 1px solid rgba(200,50,50,0.3); border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.linkBtn { font-size: 12px; color: #993c1d; background: none; border: none; cursor: pointer; text-decoration: underline; }
 
 .pipeDotRunning { background: var(--color-info-tone); animation: pulse 1s infinite; }
 .pipeDotError { background: var(--color-danger-tone); }

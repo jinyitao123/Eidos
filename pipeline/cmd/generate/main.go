@@ -68,12 +68,6 @@ func main() {
 			if len(o.Functions) == 0 && len(top.Functions) > 0 {
 				o.Functions = top.Functions
 			}
-			if o.GraphConfig == nil && top.GraphConfig != nil {
-				o.GraphConfig = top.GraphConfig
-			}
-			if len(o.ConnectorHints) == 0 && len(top.ConnectorHints) > 0 {
-				o.ConnectorHints = top.ConnectorHints
-			}
 		}
 	} else {
 		var flat types.Ontology

@@ -7,6 +7,7 @@ import { ClassEditor } from './pages/ClassEditor'
 import { RuleEditor } from './pages/RuleEditor'
 import { ReviewReport } from './pages/ReviewReport'
 import { PublishPipeline } from './pages/PublishPipeline'
+import { StrategySetup } from './pages/StrategySetup'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/project/:projectId/rules" element={<RuleEditor />} />
         <Route path="/project/:projectId/report" element={<ReviewReport />} />
         <Route path="/project/:projectId/publish" element={<PublishPipeline />} />
+        <Route path="/project/:projectId/strategy" element={<StrategySetup />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

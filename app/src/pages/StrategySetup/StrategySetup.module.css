@@ -1,0 +1,54 @@
+.loading { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }
+.back { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; margin-bottom: 12px; }
+
+.header { margin-bottom: 24px; }
+.title { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+.subtitle { font-size: 13px; color: var(--color-text-secondary); margin: 0; }
+
+.section { margin-bottom: 24px; }
+.sectionTitle { font-size: 14px; font-weight: 500; margin: 0 0 12px 0; color: var(--color-text-primary); }
+
+.radioGroup { display: flex; flex-direction: column; gap: 8px; }
+.radioLabel {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition: border-color 0.15s, background 0.15s;
+}
+.radioLabel:hover { border-color: var(--color-border-hover); }
+.radioLabelSelected {
+  border-color: #993c1d; background: rgba(153, 60, 29, 0.04);
+}
+.radioInput { margin-top: 2px; accent-color: #993c1d; }
+.radioText { flex: 1; }
+.radioName { font-size: 13px; font-weight: 500; }
+.radioDesc { font-size: 12px; color: var(--color-text-tertiary); margin-top: 2px; line-height: 1.4; }
+
+.field { margin-bottom: 16px; }
+.fieldLabel {
+  display: block; font-size: 13px; font-weight: 500;
+  margin-bottom: 4px; color: var(--color-text-primary);
+}
+.fieldHint { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+.fieldRow { display: flex; align-items: center; gap: 8px; }
+.input {
+  width: 140px; padding: 6px 10px; font-size: 13px;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  outline: none;
+}
+.input:focus { border-color: #993c1d; }
+.unit { font-size: 12px; color: var(--color-text-tertiary); }
+
+.actions { display: flex; gap: 8px; margin-top: 24px; }
+.btnPrimary {
+  padding: 8px 20px; font-size: 13px; font-weight: 500;
+  background: #993c1d; color: #fff; border: none; border-radius: 6px;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btnPrimary:hover { opacity: 0.9; }
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status { margin-top: 12px; font-size: 13px; padding: 8px 12px; border-radius: 6px; }
+.statusOk { background: rgba(34, 139, 34, 0.08); color: #228b22; }
+.statusErr { background: rgba(200, 50, 50, 0.08); color: #c83232; }

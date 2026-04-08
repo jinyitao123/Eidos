@@ -47,6 +47,17 @@ func Generate(o *types.Ontology) *GenerateResult {
 		result.Tools = append(result.Tools, tool)
 	}
 
+	// Generate metric tools
+	for _, m := range o.Metrics {
+		tool := generateMetricTool(m)
+		result.Tools = append(result.Tools, tool)
+	}
+
+	// Generate telemetry query tool (one shared tool for all telemetry streams)
+	if len(o.Telemetry) > 0 {
+		result.Tools = append(result.Tools, generateTelemetryTool(o))
+	}
+
 	// Generate query_ontology_metadata tool
 	result.Tools = append(result.Tools, generateMetadataTool(o))
 
@@ -56,13 +67,11 @@ func Generate(o *types.Ontology) *GenerateResult {
 func generateQueryTool(schemaID string, c types.Class) ToolDef {
 	props := make(map[string]any)
 
-	// Add graph_sync=true attributes as optional query params
+	// Add all attributes as optional query params
 	for _, a := range c.Attributes {
-		if a.GraphSync {
-			props[a.ID] = map[string]any{
-				"type":        mapJSONType(a.Type),
-				"description": a.Name,
-			}
+		props[a.ID] = map[string]any{
+			"type":        mapJSONType(a.Type),
+			"description": a.Name,
 		}
 	}
 
@@ -145,6 +154,136 @@ func generateCalcTool(f types.Function) ToolDef {
 	}
 }
 
+func generateMetricTool(m types.Metric) ToolDef {
+	props := make(map[string]any)
+	var required []string
+
+	// Add dimension filters
+	for _, dim := range m.Dimensions {
+		props[dim] = map[string]any{
+			"type":        "string",
+			"description": fmt.Sprintf("按 %s 维度过滤", dim),
+		}
+	}
+
+	// Add metric params as optional inputs
+	for _, p := range m.Params {
+		props[p.ID] = map[string]any{
+			"type":        mapJSONType(p.Type),
+			"description": p.Name,
+		}
+		if p.Default != nil {
+			props[p.ID].(map[string]any)["default"] = p.Default
+		}
+	}
+
+	// Classification metrics use classify_ prefix
+	toolName := fmt.Sprintf("query_%s", m.ID)
+	desc := fmt.Sprintf("查询指标 %s — %s", m.Name, m.Description)
+	if m.Kind == "classification" {
+		toolName = fmt.Sprintf("classify_%s", m.ID)
+		desc = fmt.Sprintf("分类计算 %s — %s", m.Name, m.Description)
+
+		// Classification requires source entity IDs
+		props["entity_ids"] = map[string]any{
+			"type":        "array",
+			"items":       map[string]any{"type": "string"},
+			"description": "待分类的实体ID列表",
+		}
+		required = append(required, "entity_ids")
+	} else {
+		// Aggregate/composite metrics support time range and granularity
+		props["time_range"] = map[string]any{
+			"type":        "string",
+			"description": "时间范围，如 7d, 30d, 90d",
+			"default":     "30d",
+		}
+		if m.Granularity != "" {
+			props["granularity"] = map[string]any{
+				"type":        "string",
+				"description": "聚合粒度",
+				"default":     m.Granularity,
+			}
+		}
+	}
+
+	schema := map[string]any{
+		"type":       "object",
+		"properties": props,
+	}
+	if len(required) > 0 {
+		schema["required"] = required
+	}
+	schemaJSON, _ := json.Marshal(schema)
+
+	return ToolDef{
+		Name:        toolName,
+		Description: desc,
+		InputSchema: schemaJSON,
+	}
+}
+
+func generateTelemetryTool(o *types.Ontology) ToolDef {
+	// Build enum of available telemetry IDs
+	telemetryIDs := make([]string, 0, len(o.Telemetry))
+	for _, t := range o.Telemetry {
+		telemetryIDs = append(telemetryIDs, t.ID)
+	}
+
+	// Collect all aggregation methods across telemetry streams
+	aggSet := make(map[string]bool)
+	for _, t := range o.Telemetry {
+		for _, agg := range t.Aggregations {
+			aggSet[agg] = true
+		}
+	}
+	aggs := make([]string, 0, len(aggSet))
+	for a := range aggSet {
+		aggs = append(aggs, a)
+	}
+
+	props := map[string]any{
+		"telemetry_id": map[string]any{
+			"type":        "string",
+			"enum":        telemetryIDs,
+			"description": "遥测流ID",
+		},
+		"source_id": map[string]any{
+			"type":        "string",
+			"description": "数据源实体ID",
+		},
+		"time_range": map[string]any{
+			"type":        "string",
+			"description": "查询时间窗口，如 1h, 6h, 24h, 7d",
+			"default":     "1h",
+		},
+		"aggregation": map[string]any{
+			"type":        "string",
+			"enum":        aggs,
+			"description": "聚合方式",
+			"default":     "avg",
+		},
+		"granularity": map[string]any{
+			"type":        "string",
+			"description": "返回数据粒度，如 1m, 5m, 1h",
+			"default":     "5m",
+		},
+	}
+
+	schema := map[string]any{
+		"type":       "object",
+		"properties": props,
+		"required":   []string{"telemetry_id", "source_id"},
+	}
+	schemaJSON, _ := json.Marshal(schema)
+
+	return ToolDef{
+		Name:        "query_telemetry",
+		Description: fmt.Sprintf("查询 %s 的遥测时序数据。支持按时间窗口、聚合方式和粒度查询。", o.Name),
+		InputSchema: schemaJSON,
+	}
+}
+
 func generateMetadataTool(o *types.Ontology) ToolDef {
 	schemaJSON, _ := json.Marshal(map[string]any{
 		"type":       "object",
@@ -177,12 +316,10 @@ func handleQuery%s(ctx context.Context, pool *pgxpool.Pool, args json.RawMessage
 	var p struct {
 `, capitalize(c.ID)))
 
-	// Struct fields for graph_sync attributes
+	// Struct fields for filterable attributes
 	for _, a := range c.Attributes {
-		if a.GraphSync {
-			b.WriteString(fmt.Sprintf("\t\t%s *%s `json:\"%s\"`\n",
-				capitalize(a.ID), mapGoType(a.Type), a.ID))
-		}
+		b.WriteString(fmt.Sprintf("\t\t%s *%s `json:\"%s\"`\n",
+			capitalize(a.ID), mapGoType(a.Type), a.ID))
 	}
 	b.WriteString(`		Limit  int    ` + "`json:\"limit\"`\n")
 	b.WriteString(`		Offset int    ` + "`json:\"offset\"`\n")
@@ -197,14 +334,12 @@ func handleQuery%s(ctx context.Context, pool *pgxpool.Pool, args json.RawMessage
 	b.WriteString("\targIdx := 1\n\n")
 
 	for _, a := range c.Attributes {
-		if a.GraphSync {
-			field := capitalize(a.ID)
-			b.WriteString(fmt.Sprintf("\tif p.%s != nil {\n", field))
-			b.WriteString(fmt.Sprintf("\t\tquery += fmt.Sprintf(\" AND %s = $%%d\", argIdx)\n", a.ID))
-			b.WriteString(fmt.Sprintf("\t\tqArgs = append(qArgs, *p.%s)\n", field))
-			b.WriteString("\t\targIdx++\n")
-			b.WriteString("\t}\n")
-		}
+		field := capitalize(a.ID)
+		b.WriteString(fmt.Sprintf("\tif p.%s != nil {\n", field))
+		b.WriteString(fmt.Sprintf("\t\tquery += fmt.Sprintf(\" AND %s = $%%d\", argIdx)\n", a.ID))
+		b.WriteString(fmt.Sprintf("\t\tqArgs = append(qArgs, *p.%s)\n", field))
+		b.WriteString("\t\targIdx++\n")
+		b.WriteString("\t}\n")
 	}
 
 	b.WriteString(`

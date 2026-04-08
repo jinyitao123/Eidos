@@ -25,37 +25,17 @@ func Generate(o *types.Ontology) *Result {
 
 	syncCfg.WriteString(fmt.Sprintf("# Sync config for %s v%s\n", o.Name, o.Version))
 	syncCfg.WriteString(fmt.Sprintf("schema: %s\n", schema))
-	if o.GraphConfig != nil {
-		syncCfg.WriteString(fmt.Sprintf("archive_events_after_days: %d\n", o.GraphConfig.ArchiveEventsAfterDays))
-		syncCfg.WriteString(fmt.Sprintf("structure_sync: %s\n", o.GraphConfig.StructureSync))
-		syncCfg.WriteString(fmt.Sprintf("event_sync: %s\n", o.GraphConfig.EventSync))
-	}
 	syncCfg.WriteString("\nnodes:\n")
 
-	// Determine which classes are excluded from graph
-	excludeSet := make(map[string]bool)
-	if o.GraphConfig != nil {
-		for _, id := range o.GraphConfig.NodesNotInGraph {
-			excludeSet[id] = true
-		}
-	}
-
 	for _, c := range o.Classes {
-		if excludeSet[c.ID] {
-			continue
-		}
 		label := toPascalCase(c.ID)
 
 		// Unique constraint on id
 		cypher.WriteString(fmt.Sprintf("CREATE CONSTRAINT %s_id_unique IF NOT EXISTS FOR (n:%s) REQUIRE n.id IS UNIQUE;\n", label, label))
 
-		// Indexes on graph_sync attributes that are commonly filtered
+		// Indexes on enum and boolean attributes that are commonly filtered
 		for _, a := range c.Attributes {
-			if a.GraphSync && a.Type == "enum" {
-				propName := toCamelCase(a.ID)
-				cypher.WriteString(fmt.Sprintf("CREATE INDEX %s_%s_idx IF NOT EXISTS FOR (n:%s) ON (n.%s);\n", label, propName, label, propName))
-			}
-			if a.GraphSync && a.Type == "boolean" {
+			if a.Type == "enum" || a.Type == "boolean" {
 				propName := toCamelCase(a.ID)
 				cypher.WriteString(fmt.Sprintf("CREATE INDEX %s_%s_idx IF NOT EXISTS FOR (n:%s) ON (n.%s);\n", label, propName, label, propName))
 			}
@@ -67,18 +47,13 @@ func Generate(o *types.Ontology) *Result {
 		syncCfg.WriteString("    properties:\n")
 		syncCfg.WriteString("      - id\n")
 		for _, a := range c.Attributes {
-			if a.GraphSync {
-				syncCfg.WriteString(fmt.Sprintf("      - %s\n", toCamelCase(a.ID)))
-			}
+			syncCfg.WriteString(fmt.Sprintf("      - %s\n", toCamelCase(a.ID)))
 		}
 	}
 
 	// Relationship indexes
 	cypher.WriteString("\n// Relationship indexes\n")
 	for _, r := range o.Relationships {
-		if excludeSet[r.From] || excludeSet[r.To] {
-			continue
-		}
 		edgeType := strings.ToUpper(r.ID)
 		cypher.WriteString(fmt.Sprintf("// %s: (%s)-[:%s]->(%s)\n",
 			r.Name, toPascalCase(r.From), edgeType, toPascalCase(r.To)))
@@ -86,9 +61,6 @@ func Generate(o *types.Ontology) *Result {
 
 	syncCfg.WriteString("\nrelationships:\n")
 	for _, r := range o.Relationships {
-		if excludeSet[r.From] || excludeSet[r.To] {
-			continue
-		}
 		syncCfg.WriteString(fmt.Sprintf("  - type: %s\n", strings.ToUpper(r.ID)))
 		syncCfg.WriteString(fmt.Sprintf("    from: %s\n", toPascalCase(r.From)))
 		syncCfg.WriteString(fmt.Sprintf("    to: %s\n", toPascalCase(r.To)))

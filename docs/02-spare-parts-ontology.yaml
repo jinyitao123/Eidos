@@ -1,11 +1,16 @@
 # 备件管理本体 · 完整 YAML
 # 永祥科技（通威灯塔工厂）· 库存进销存管控
-# v1.0 · 2026.03
+# v2.0 · 2026.03
+#
+# 变更记录：
+# v2.0 - 新增 metrics 节点；移除 graph_sync/graph_config/connector_hints（存储无关化）；
+#         functions 移除 implementation 字段（语义化）
+# v1.0 - 初始版本
 
 ontology:
   name: 备件管理
   id: spare_parts
-  version: "1.0.0"
+  version: "2.0.0"
   description: 以库存头寸为核心的备件进销存管控本体
 
   classes:
@@ -19,20 +24,23 @@ ontology:
       first_citizen: true
       phase: alpha
       attributes:
-        - { id: current_qty, name: 当前数量, type: integer, required: true, default: 0, graph_sync: true, phase: alpha }
-        - { id: safety_stock, name: 安全库存, type: integer, required: true, default: 2, graph_sync: true, configurable: true, phase: alpha }
-        - { id: safety_gap, name: 安全缺口, type: integer, derived: "safety_stock - available_qty", graph_sync: true, phase: alpha }
-        - { id: available_qty, name: 可用数量, type: integer, derived: "current_qty - reserved_qty", graph_sync: true, phase: alpha }
+        - { id: current_qty, name: 当前数量, type: integer, required: true, default: 0, phase: alpha }
+        - { id: safety_stock, name: 安全库存, type: integer, required: true, default: 2, configurable: true, phase: alpha }
+        - { id: safety_gap, name: 安全缺口, type: integer, derived: "safety_stock - available_qty", phase: alpha, description: "正值表示短缺，触发补货预警" }
+        - { id: available_qty, name: 可用数量, type: integer, derived: "current_qty - reserved_qty", phase: alpha }
         - { id: reserved_qty, name: 预留数量, type: integer, required: true, default: 0, phase: alpha }
-        - { id: unit_price, name: 持仓单价, type: decimal, required: true, graph_sync: true, phase: alpha, description: "该头寸的实际持仓单价，可能与备件标准价格不同" }
-        - { id: inventory_value, name: 库存金额, type: decimal, derived: "current_qty * unit_price", graph_sync: true, phase: alpha }
-        - { id: is_stale, name: 是否呆滞, type: boolean, default: false, graph_sync: true, phase: alpha }
+        - { id: unit_price, name: 持仓单价, type: decimal, required: true, phase: alpha, description: "该头寸的实际持仓单价，可能与备件标准价格不同" }
+        - { id: inventory_value, name: 库存金额, type: decimal, derived: "current_qty * unit_price", phase: alpha, unit: 元 }
+        - { id: is_stale, name: 是否呆滞, type: boolean, default: false, phase: alpha }
         - { id: last_movement_date, name: 末次变动日期, type: date, phase: alpha }
-        - { id: last_consumed_date, name: 末次消耗日期, type: date, graph_sync: true, phase: alpha }
-        - { id: stale_age_days, name: 库龄天数, type: integer, derived: "DATEDIFF(days, last_consumed_date, NOW())", phase: alpha }
-        - { id: monthly_avg_consumption, name: 月均消耗, type: decimal, derived: "SUM(movements.quantity WHERE movement_type='OUT' AND movement_date > NOW() - INTERVAL '3 months') / 3", graph_sync: true, phase: alpha }
-        - { id: turnover_rate, name: 周转率, type: decimal, derived: "monthly_avg_consumption / NULLIF(current_qty, 0)", phase: beta }
-        - { id: data_source, name: 数据来源, type: enum, enum_values: [ERP_SYNC, SCAN_REALTIME], default: ERP_SYNC, graph_sync: true, phase: alpha }
+        - { id: last_consumed_date, name: 末次消耗日期, type: date, phase: alpha }
+        - { id: stale_age_days, name: 库龄天数, type: integer, derived: "DATEDIFF(days, last_consumed_date, NOW())", phase: alpha, unit: days, value_range: ">= 0" }
+        - { id: monthly_avg_consumption, name: 月均消耗, type: decimal, derived: "SUM(movements.quantity WHERE movement_type='OUT' AND movement_date > NOW() - INTERVAL '3 months') / 3", phase: alpha, description: "近3个月平均月消耗量" }
+        - { id: turnover_rate, name: 周转率, type: decimal, derived: "monthly_avg_consumption / NULLIF(current_qty, 0)", phase: beta, description: "月均消耗与当前库存的比值，反映库存流转效率" }
+        - { id: consumption_volatility, name: 消耗波动系数, type: decimal, derived: "STDDEV(monthly_consumption) / NULLIF(AVG(monthly_consumption), 0)", phase: beta, description: "近12个月消耗量标准差与均值之比，越大越不稳定" }
+        - { id: supply_months, name: 库存支撑月数, type: decimal, derived: "current_qty / NULLIF(monthly_avg_consumption, 0)", phase: alpha, unit: 月, description: "当前库存按目前消耗速度能支撑的月数" }
+        - { id: days_of_supply, name: 可支撑天数, type: integer, derived: "current_qty / NULLIF(monthly_avg_consumption / 30, 0)", phase: alpha, unit: days, description: "当前库存按日均消耗速度能支撑的天数" }
+        - { id: data_source, name: 数据来源, type: enum, enum_values: [ERP_SYNC, SCAN_REALTIME], default: ERP_SYNC, phase: alpha }
         - { id: data_as_of, name: 数据截止时间, type: datetime, phase: alpha }
         - { id: last_sync_at, name: 最后同步时间, type: datetime, phase: alpha }
         - { id: created_at, name: 创建时间, type: datetime, phase: alpha }
@@ -47,14 +55,14 @@ ontology:
       phase: alpha
       attributes:
         - { id: code, name: 物料编码, type: string, required: true, unique: true, phase: alpha }
-        - { id: name, name: 名称, type: string, required: true, graph_sync: true, phase: alpha }
+        - { id: name, name: 名称, type: string, required: true, phase: alpha }
         - { id: specification, name: 规格型号, type: string, phase: alpha }
-        - { id: category, name: 物理分类, type: string, required: true, graph_sync: true, phase: alpha }
-        - { id: criticality, name: 关键性等级, type: enum, enum_values: [A, B, C], graph_sync: true, phase: alpha, description: "A=停机件，B=降效件，C=一般件" }
+        - { id: category, name: 物理分类, type: string, required: true, phase: alpha }
+        - { id: criticality, name: 关键性等级, type: enum, enum_values: [A, B, C], phase: alpha, description: "A=停机件，B=降效件，C=一般件" }
         - { id: default_safety_stock, name: 默认安全库存, type: integer, default: 2, phase: alpha, description: "新建头寸时的默认安全库存值" }
-        - { id: typical_lead_time, name: 典型采购周期, type: integer, unit: days, graph_sync: true, phase: alpha }
+        - { id: typical_lead_time, name: 典型采购周期, type: integer, unit: days, phase: alpha }
         - { id: lead_time_variance, name: 采购周期偏差, type: integer, unit: days, phase: alpha, description: "实际采购周期与典型值的偏差天数" }
-        - { id: unit_price, name: 标准价格, type: decimal, unit: 元, graph_sync: true, phase: alpha }
+        - { id: unit_price, name: 标准价格, type: decimal, unit: 元, phase: alpha }
         - { id: unit, name: 计量单位, type: string, required: true, phase: alpha }
 
     # ============================================================
@@ -65,14 +73,16 @@ ontology:
       description: 备件存储位置
       phase: alpha
       attributes:
-        - { id: name, name: 库房名称, type: string, required: true, graph_sync: true, phase: alpha }
+        - { id: name, name: 库房名称, type: string, required: true, phase: alpha }
         - { id: code, name: 库房编码, type: string, unique: true, phase: alpha }
-        - { id: level, name: 层级, type: enum, enum_values: [PRIMARY, SECONDARY], required: true, graph_sync: true, phase: alpha, description: "PRIMARY=一级库(ERP管控)，SECONDARY=二级库(线边库)" }
+        - { id: level, name: 层级, type: enum, enum_values: [PRIMARY, SECONDARY], required: true, phase: alpha, description: "PRIMARY=一级库(ERP管控)，SECONDARY=二级库(线边库)" }
         - { id: managed_by, name: 管理人, type: string, phase: alpha }
         - { id: belongs_to_section, name: 所属工段, type: string, phase: alpha }
         - { id: has_safety_stock, name: 启用安全库存, type: boolean, default: true, phase: alpha }
-        - { id: total_value, name: 库存总金额, type: decimal, derived: "SUM([located_in].inventory_value)", graph_sync: true, phase: alpha }
-        - { id: target_value, name: 目标金额, type: decimal, configurable: true, phase: alpha }
+        - { id: total_value, name: 库存总金额, type: decimal, derived: "SUM([located_in].inventory_value)", phase: alpha, unit: 元 }
+        - { id: target_value, name: 目标金额, type: decimal, configurable: true, phase: alpha, unit: 元 }
+        - { id: stale_ratio, name: 呆滞率, type: decimal, derived: "SUM([located_in].inventory_value WHERE is_stale = true) / NULLIF(total_value, 0)", phase: alpha, description: "呆滞库存金额占该库房库存总金额的比例" }
+        - { id: risk_position_count, name: 风险头寸数, type: integer, derived: "COUNT([located_in] WHERE safety_gap > 0)", phase: alpha, description: "可用数量低于安全库存的头寸数" }
 
     # ============================================================
     # 核心类：设备
@@ -83,11 +93,11 @@ ontology:
       phase: alpha
       attributes:
         - { id: code, name: 设备编号, type: string, required: true, unique: true, phase: alpha }
-        - { id: name, name: 名称, type: string, required: true, graph_sync: true, phase: alpha }
-        - { id: location, name: 所在产线, type: string, required: true, graph_sync: true, phase: alpha }
+        - { id: name, name: 名称, type: string, required: true, phase: alpha }
+        - { id: location, name: 所在产线, type: string, required: true, phase: alpha }
         - { id: type, name: 设备类型, type: string, phase: alpha }
-        - { id: section, name: 所属工段, type: string, graph_sync: true, phase: alpha }
-        - { id: status, name: 运行状态, type: enum, enum_values: [RUNNING, STOPPED, MAINTENANCE], default: RUNNING, graph_sync: true, phase: alpha }
+        - { id: section, name: 所属工段, type: string, phase: alpha }
+        - { id: status, name: 运行状态, type: enum, enum_values: [RUNNING, STOPPED, MAINTENANCE], default: RUNNING, phase: alpha }
         - { id: install_date, name: 安装日期, type: date, phase: alpha }
         - { id: last_maintenance_date, name: 末次维护日期, type: date, phase: alpha }
 
@@ -99,10 +109,10 @@ ontology:
       description: 一次出入库事件的完整记录
       phase: alpha
       attributes:
-        - { id: movement_type, name: 变动类型, type: enum, enum_values: [IN, OUT, RETURN, SCRAP, TRANSFER], required: true, graph_sync: true, phase: alpha }
-        - { id: movement_reason, name: 变动原因, type: enum, enum_values: [FAULT_REPAIR, MAINTENANCE, TECH_UPGRADE, PROJECT, SCRAP_RETURN, PURCHASE_ARRIVAL, OTHER], graph_sync: true, phase: alpha }
-        - { id: quantity, name: 数量, type: integer, required: true, graph_sync: true, phase: alpha }
-        - { id: movement_date, name: 变动日期, type: datetime, required: true, graph_sync: true, phase: alpha }
+        - { id: movement_type, name: 变动类型, type: enum, enum_values: [IN, OUT, RETURN, SCRAP, TRANSFER], required: true, phase: alpha }
+        - { id: movement_reason, name: 变动原因, type: enum, enum_values: [FAULT_REPAIR, MAINTENANCE, TECH_UPGRADE, PROJECT, SCRAP_RETURN, PURCHASE_ARRIVAL, OTHER], phase: alpha }
+        - { id: quantity, name: 数量, type: integer, required: true, phase: alpha }
+        - { id: movement_date, name: 变动日期, type: datetime, required: true, phase: alpha }
         - { id: operator, name: 操作人, type: string, required: true, phase: alpha }
         - { id: fault_description, name: 故障描述, type: text, phase: alpha }
         - { id: is_agent_verified, name: Agent已核实, type: boolean, default: false, phase: alpha, description: "Agent是否已核实该记录的准确性" }
@@ -118,20 +128,20 @@ ontology:
       phase: alpha
       attributes:
         - { id: order_no, name: 采购单号, type: string, unique: true, phase: alpha }
-        - { id: status, name: 状态, type: enum, enum_values: [DRAFT, SUBMITTED, APPROVED, IN_TRANSIT, RECEIVED, CANCELLED], required: true, default: DRAFT, graph_sync: true, phase: alpha }
-        - { id: quantity, name: 采购数量, type: integer, required: true, graph_sync: true, phase: alpha }
-        - { id: unit_price, name: 采购单价, type: decimal, required: true, phase: alpha }
-        - { id: total_amount, name: 采购总额, type: decimal, derived: "quantity * unit_price", phase: alpha }
+        - { id: status, name: 状态, type: enum, enum_values: [DRAFT, SUBMITTED, APPROVED, IN_TRANSIT, RECEIVED, CANCELLED], required: true, default: DRAFT, phase: alpha }
+        - { id: quantity, name: 采购数量, type: integer, required: true, phase: alpha }
+        - { id: unit_price, name: 采购单价, type: decimal, required: true, phase: alpha, unit: 元 }
+        - { id: total_amount, name: 采购总额, type: decimal, derived: "quantity * unit_price", phase: alpha, unit: 元 }
         - { id: source, name: 来源, type: enum, enum_values: [MANUAL, AGENT_SUGGESTED], default: AGENT_SUGGESTED, phase: alpha }
         - { id: urgency, name: 紧急程度, type: enum, enum_values: [NORMAL, URGENT], default: NORMAL, phase: alpha }
         - { id: reason, name: 采购原因, type: text, phase: alpha }
         - { id: approved_by, name: 审批人, type: string, phase: alpha }
         - { id: order_date, name: 下单日期, type: date, phase: alpha }
-        - { id: expected_arrival, name: 预计到货, type: date, graph_sync: true, phase: alpha }
+        - { id: expected_arrival, name: 预计到货, type: date, phase: alpha }
         - { id: actual_arrival_date, name: 实际到货日期, type: date, phase: alpha }
 
     # ============================================================
-    # 辅助类：库存快照（不入图谱）
+    # 辅助类：库存快照
     # ============================================================
     - id: inventory_snapshot
       name: 库存快照
@@ -140,9 +150,9 @@ ontology:
       attributes:
         - { id: snapshot_month, name: 快照月份, type: string, required: true, phase: alpha, description: "格式：YYYY-MM" }
         - { id: snapshot_qty, name: 快照数量, type: integer, required: true, phase: alpha }
-        - { id: snapshot_value, name: 快照金额, type: decimal, required: true, phase: alpha }
+        - { id: snapshot_value, name: 快照金额, type: decimal, required: true, phase: alpha, unit: 元 }
         - { id: monthly_consumption, name: 月消耗量, type: integer, required: true, default: 0, phase: alpha }
-        - { id: monthly_consumption_value, name: 月消耗金额, type: decimal, required: true, default: 0, phase: alpha }
+        - { id: monthly_consumption_value, name: 月消耗金额, type: decimal, required: true, default: 0, phase: alpha, unit: 元 }
       unique_constraints:
         - columns: [inventory_position_id, snapshot_month]
 
@@ -194,6 +204,263 @@ ontology:
     - { id: procures, name: 采购, from: purchase_order, to: spare_part, cardinality: many_to_one, required: true, phase: alpha }
     - { id: snapshot_of, name: 快照于, from: inventory_snapshot, to: inventory_position, cardinality: many_to_one, required: true, phase: alpha, description: "快照关联到具体头寸，(position_id, snapshot_month)唯一" }
     - { id: decided_on, name: 决策于, from: decision_log, to: inventory_position, cardinality: many_to_one, phase: beta }
+
+  # ============================================================
+  # 指标定义
+  # ============================================================
+  metrics:
+
+    # --- 聚合型指标 ---
+
+    - id: stale_ratio
+      name: 呆滞率
+      description: 呆滞库存金额占总库存金额的比例，反映库存资金的沉淀程度
+      phase: alpha
+      kind: aggregate
+      formula: "SUM(inventory_value WHERE is_stale = true) / SUM(inventory_value)"
+      source_entities: [inventory_position]
+      params:
+        - { id: stale_threshold_days, name: 呆滞判定天数, type: integer, default: 365, configurable: true, description: "库龄超过此天数且无消耗的头寸被判定为呆滞" }
+      dimensions: [warehouse, category]
+      granularity: system
+      depends_on:
+        - { type: attribute, ref: "inventory_position.is_stale" }
+        - { type: attribute, ref: "inventory_position.inventory_value" }
+        - { type: rule_param, ref: "R03.threshold" }
+      status: implemented
+      tool: get_inventory_health
+
+    - id: risk_positions
+      name: 风险头寸数
+      description: 可用数量低于安全库存的头寸数量，反映补货紧迫程度
+      phase: alpha
+      kind: aggregate
+      formula: "COUNT(inventory_position WHERE safety_gap > 0)"
+      source_entities: [inventory_position]
+      dimensions: [warehouse]
+      granularity: system
+      depends_on:
+        - { type: attribute, ref: "inventory_position.safety_gap" }
+      status: implemented
+      tool: get_inventory_health
+
+    - id: releasable_value
+      name: 可释放金额
+      description: 所有头寸中超出安全库存的部分按单价计算的可释放总金额
+      phase: alpha
+      kind: aggregate
+      formula: "SUM((current_qty - safety_stock) * unit_price WHERE current_qty > safety_stock AND criticality != 'A')"
+      source_entities: [inventory_position, spare_part]
+      params:
+        - { id: exclude_criticality_a, name: 排除A级件, type: boolean, default: true, configurable: true, description: "A级关键件默认不纳入可释放计算" }
+      dimensions: [warehouse, category]
+      granularity: system
+      depends_on:
+        - { type: attribute, ref: "inventory_position.current_qty" }
+        - { type: attribute, ref: "inventory_position.safety_stock" }
+        - { type: attribute, ref: "spare_part.criticality" }
+      status: implemented
+      tool: get_optimization_plan
+
+    - id: consumption_trend
+      name: 消耗趋势
+      description: 基于历史快照的月度消耗量变化序列，用于判断消耗是上升、稳定还是下降
+      phase: alpha
+      kind: aggregate
+      formula: "月度消耗量时间序列（基于 inventory_snapshot.monthly_consumption）"
+      source_entities: [inventory_snapshot, inventory_position, spare_part]
+      params:
+        - { id: months, name: 回溯月数, type: integer, default: 12, configurable: false, description: "默认回溯12个月" }
+      dimensions: [spare_part]
+      granularity: position
+      depends_on:
+        - { type: attribute, ref: "inventory_snapshot.monthly_consumption" }
+      status: implemented
+      tool: get_consumption_trend
+
+    # --- 分类型指标 ---
+
+    - id: inventory_quadrant
+      name: 库存结构四象限
+      description: 将每个库存头寸分类到四个口袋中，帮助管理者理解812万库存中每一分钱的性质
+      phase: alpha
+      kind: classification
+      source_entities: [inventory_position, spare_part]
+      buckets:
+        - id: active
+          name: 活库存
+          condition: "近3月有消耗（monthly_avg_consumption > 0）且 current_qty <= safety_stock * 2"
+          description: 正在流转支撑生产的库存，不可削减
+        - id: safety_reserve
+          name: 安全储备
+          condition: "criticality = 'A' 且 (typical_lead_time > 30 或 停机损失极高)"
+          description: 关键件的保险储备，削减有风险
+        - id: optimizable_excess
+          name: 可优化过剩
+          condition: "current_qty > safety_stock * 2 且 不属于 safety_reserve"
+          description: 优化主战场，可安全释放
+        - id: stale_sunk
+          name: 呆滞沉淀
+          condition: "is_stale = true（库龄 > stale_threshold_days 无消耗）"
+          description: 长期无消耗的沉淀库存，需处置（代用、调拨、折价、报废）
+      params:
+        - { id: active_consumption_months, name: 活库存判定月数, type: integer, default: 3, configurable: true }
+        - { id: excess_multiplier, name: 过剩判定倍数, type: decimal, default: 2, configurable: true, description: "当前库存超过安全库存的N倍即视为过剩" }
+        - { id: safety_lead_time_threshold, name: 安全储备采购周期阈值, type: integer, default: 30, configurable: true, unit: days }
+      dimensions: [warehouse, category]
+      granularity: position
+      depends_on:
+        - { type: attribute, ref: "inventory_position.monthly_avg_consumption" }
+        - { type: attribute, ref: "inventory_position.current_qty" }
+        - { type: attribute, ref: "inventory_position.safety_stock" }
+        - { type: attribute, ref: "inventory_position.is_stale" }
+        - { type: attribute, ref: "spare_part.criticality" }
+        - { type: attribute, ref: "spare_part.typical_lead_time" }
+      status: designed
+      known_issues:
+        - 前端展示为硬编码假数据，后端无对应计算工具
+        - criticality 字段数据尚未录入
+
+    # --- 复合型指标 ---
+
+    - id: warehouse_health_score
+      name: 库房健康分
+      description: 综合评估库房库存健康状况的复合指标，满分100分，从目标达成、呆滞控制、风险覆盖三个维度扣分
+      phase: alpha
+      kind: composite
+      formula: "100 - MIN(30, |total_value - target_value| / target_value * 30) - MIN(30, stale_ratio * 100) - MIN(20, risk_positions / total_positions * 100)"
+      source_entities: [warehouse, inventory_position]
+      params:
+        - { id: target_value, name: 目标金额, type: decimal, configurable: true, description: "各库房独立设置的库存金额目标" }
+        - { id: distance_max_penalty, name: 缺口最大扣分, type: integer, default: 30, configurable: false }
+        - { id: stale_max_penalty, name: 呆滞最大扣分, type: integer, default: 30, configurable: false }
+        - { id: risk_max_penalty, name: 风险最大扣分, type: integer, default: 20, configurable: false }
+      dimensions: [warehouse]
+      granularity: warehouse
+      depends_on:
+        - { type: metric, ref: stale_ratio }
+        - { type: metric, ref: risk_positions }
+        - { type: attribute, ref: "warehouse.total_value" }
+        - { type: attribute, ref: "warehouse.target_value" }
+      status: implemented
+      tool: get_inventory_health
+
+    - id: monthly_value_trend
+      name: 月度金额趋势
+      description: 基于历史快照的月度库存总金额变化序列，对标目标金额观察趋势走向
+      phase: alpha
+      kind: aggregate
+      formula: "按月聚合 SUM(inventory_snapshot.snapshot_value) GROUP BY snapshot_month"
+      source_entities: [inventory_snapshot, warehouse]
+      params:
+        - { id: months, name: 回溯月数, type: integer, default: 12, configurable: false }
+      dimensions: [warehouse]
+      granularity: warehouse
+      depends_on:
+        - { type: attribute, ref: "inventory_snapshot.snapshot_value" }
+        - { type: attribute, ref: "warehouse.target_value" }
+      status: implemented
+      tool: get_monthly_value_trend
+
+    # --- 暂不定义的指标（明确标记） ---
+
+    - id: stockout_probability
+      name: 断货概率
+      description: 基于消耗趋势和采购周期预估的未来缺货概率
+      phase: beta
+      kind: aggregate
+      formula: null
+      source_entities: [inventory_position, spare_part]
+      granularity: position
+      status: undefined
+      known_issues:
+        - 没有统计模型支撑，暂无计算方法
+        - Agent 不应编造此指标的数值
+
+    - id: decision_accuracy
+      name: 决策回溯准确率
+      description: 采购决策的事后验证——实际消耗与采购数量的吻合程度
+      phase: beta
+      kind: aggregate
+      formula: null
+      source_entities: [decision_log, purchase_order, inventory_snapshot]
+      granularity: system
+      status: undefined
+      known_issues:
+        - 依赖 decision_log 实体（beta 阶段）
+        - 评判标准（什么算"精准"、什么算"偏多"）未定义
+
+  # ============================================================
+  # 遥测定义（设备物联数据流）
+  # ============================================================
+  telemetry:
+
+    - id: motor_vibration
+      name: 电机振动
+      description: 旋转设备电机振动加速度，用于判断设备健康状态和预测备件消耗压力
+      phase: full
+      source_class: equipment
+      source_filter: "type IN ('旋转设备', '电机', '风机', '泵')"
+      value_type: decimal
+      unit: mm/s
+      sampling: 1s
+      normal_range: [0, 4.5]
+      warning_threshold: 7.1
+      alert_threshold: 11.2
+      reference_standard: ISO 10816
+      aggregations: [avg, max, rms, p95]
+      context_strategy:
+        default_window: 1h
+        max_window: 7d
+        default_aggregation: rms
+        default_granularity: 5min
+      status: designed
+      known_issues:
+        - 设备振动传感器尚未全部部署
+        - 需要与设备管理系统对接采集通道
+
+    - id: motor_temperature
+      name: 电机温度
+      description: 电机绕组温度，高温预警可提前触发备件储备
+      phase: full
+      source_class: equipment
+      source_filter: "type IN ('旋转设备', '电机')"
+      value_type: decimal
+      unit: "°C"
+      sampling: 10s
+      normal_range: [20, 85]
+      warning_threshold: 100
+      alert_threshold: 130
+      reference_standard: GB/T 755
+      aggregations: [avg, max, min]
+      context_strategy:
+        default_window: 1h
+        max_window: 24h
+        default_aggregation: avg
+        default_granularity: 10min
+      status: designed
+      known_issues:
+        - 温度传感器覆盖率待确认
+
+    - id: equipment_run_hours
+      name: 设备运行时长
+      description: 累计运行小时数，用于推算保养周期和备件更换节奏
+      phase: full
+      source_class: equipment
+      value_type: integer
+      unit: h
+      sampling: 1min
+      normal_range: [0, 8760]
+      aggregations: [sum, max]
+      context_strategy:
+        default_window: 30d
+        max_window: 365d
+        default_aggregation: sum
+        default_granularity: 1d
+      status: designed
+      known_issues:
+        - 依赖设备PLC运行信号采集
+        - 需要与MES系统对接获取开停机记录
 
   # ============================================================
   # 规则定义
@@ -403,27 +670,12 @@ ontology:
       decision_log: true
 
   # ============================================================
-  # 函数定义
+  # 函数定义（决策辅助型）
   # ============================================================
   functions:
-    - id: calc_consumption_trend
-      name: 计算消耗趋势
-      description: 基于近N个月的出入库记录计算月均消耗和趋势方向
-      phase: beta
-      inputs:
-        - { id: position_id, type: string, required: true }
-        - { id: months, type: integer, required: false, default: 3 }
-      output:
-        type: object
-        fields:
-          - { id: monthly_avg, type: decimal, description: 月均消耗量 }
-          - { id: trend, type: enum, description: "rising / stable / declining" }
-          - { id: data_points, type: text, description: 每月消耗明细JSON }
-      implementation: sql
-
     - id: calc_reorder_point
       name: 计算补货点
-      description: 基于消耗速度和采购周期计算最优补货数量
+      description: 基于消耗速度和采购周期计算最优补货数量，需要权衡缺货风险和库存成本
       phase: beta
       inputs:
         - { id: position_id, type: string, required: true }
@@ -432,11 +684,10 @@ ontology:
         fields:
           - { id: reorder_qty, type: integer, description: 建议补货数量 }
           - { id: reasoning, type: text, description: 计算逻辑说明 }
-      implementation: agent_delegated
 
     - id: calc_stale_disposal_options
       name: 计算呆滞处置方案
-      description: 对呆滞头寸评估处置选项（报废/代用/折价）
+      description: 对呆滞头寸评估处置选项（报废/代用/折价），需要综合考虑替代件可用性、残值、处置成本
       phase: beta
       inputs:
         - { id: position_id, type: string, required: true }
@@ -445,35 +696,3 @@ ontology:
         fields:
           - { id: options, type: text, description: "处置选项列表JSON" }
           - { id: recommended, type: string, description: 推荐选项 }
-      implementation: agent_delegated
-
-  # ============================================================
-  # 图谱配置
-  # ============================================================
-  graph_config:
-    archive_events_after_days: 90
-    structure_sync: on_publish
-    status_sync:
-      primary: daily_batch
-      secondary: realtime
-    event_sync: realtime
-    nodes_not_in_graph: [inventory_snapshot, decision_log]
-
-  # ============================================================
-  # 连接器映射提示
-  # ============================================================
-  connector_hints:
-    - class_id: spare_part
-      attributes:
-        - { attribute_id: code, source_hint: "MATNR", mapping_status: mapped }
-        - { attribute_id: name, source_hint: "MAKTX", mapping_status: mapped }
-        - { attribute_id: unit, source_hint: "MEINS", mapping_status: mapped }
-        - { attribute_id: unit_price, source_hint: "STPRS", mapping_status: mapped }
-        - { attribute_id: criticality, source_hint: null, mapping_status: unmapped }
-    - class_id: inventory_position
-      attributes:
-        - { attribute_id: current_qty, source_hint: "MENGE", mapping_status: mapped }
-        - { attribute_id: data_source, source_hint: null, mapping_status: derived_no_source }
-    - class_id: warehouse
-      attributes:
-        - { attribute_id: code, source_hint: "LGORT", mapping_status: mapped }

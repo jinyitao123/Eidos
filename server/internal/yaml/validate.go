@@ -94,9 +94,9 @@ func validateFormat(o *Ontology, r *ValidationResult) {
 	}
 
 	if firstCitizenCount == 0 {
-		r.addError("format", "no class has first_citizen=true", "classes")
+		r.addWarning("format", "no class has first_citizen=true (recommended: mark exactly one class)", "classes")
 	} else if firstCitizenCount > 1 {
-		r.addError("format", fmt.Sprintf("found %d classes with first_citizen=true, expected exactly 1", firstCitizenCount), "classes")
+		r.addWarning("format", fmt.Sprintf("found %d classes with first_citizen=true, expected exactly 1", firstCitizenCount), "classes")
 	}
 
 	// Check relationships
@@ -124,6 +124,109 @@ func validateFormat(o *Ontology, r *ValidationResult) {
 		path := fmt.Sprintf("rules[%d]", i)
 		if rule.Condition.Entity != "" && !classIDs[rule.Condition.Entity] {
 			r.addError("format", fmt.Sprintf("rule '%s' references unknown entity '%s'", rule.ID, rule.Condition.Entity), path+".condition.entity")
+		}
+	}
+
+	// Check metrics
+	metricIDs := make(map[string]bool)
+	for i, m := range o.Metrics {
+		path := fmt.Sprintf("metrics[%d]", i)
+
+		if !snakeCaseRe.MatchString(m.ID) {
+			r.addError("format", fmt.Sprintf("metric id '%s' is not snake_case", m.ID), path+".id")
+		}
+		if metricIDs[m.ID] {
+			r.addError("format", fmt.Sprintf("duplicate metric id '%s'", m.ID), path+".id")
+		}
+		metricIDs[m.ID] = true
+
+		if !isValidMetricKind(m.Kind) {
+			r.addError("format", fmt.Sprintf("metric '%s' has invalid kind '%s'", m.ID, m.Kind), path+".kind")
+		}
+
+		if !isValidMetricStatus(m.Status) {
+			r.addError("format", fmt.Sprintf("metric '%s' has invalid status '%s'", m.ID, m.Status), path+".status")
+		}
+
+		if m.Kind == "classification" && len(m.Buckets) == 0 {
+			r.addError("format", fmt.Sprintf("classification metric '%s' must have buckets", m.ID), path+".buckets")
+		}
+
+		for _, se := range m.SourceEntities {
+			if !classIDs[se] {
+				r.addError("format", fmt.Sprintf("metric '%s' references unknown source_entity '%s'", m.ID, se), path+".source_entities")
+			}
+		}
+	}
+
+	// Check telemetry
+	telemetryIDs := make(map[string]bool)
+	for i, t := range o.Telemetry {
+		path := fmt.Sprintf("telemetry[%d]", i)
+
+		if !snakeCaseRe.MatchString(t.ID) {
+			r.addError("format", fmt.Sprintf("telemetry id '%s' is not snake_case", t.ID), path+".id")
+		}
+		if telemetryIDs[t.ID] {
+			r.addError("format", fmt.Sprintf("duplicate telemetry id '%s'", t.ID), path+".id")
+		}
+		telemetryIDs[t.ID] = true
+
+		if !classIDs[t.SourceClass] {
+			r.addError("format", fmt.Sprintf("telemetry '%s' references unknown source_class '%s'", t.ID, t.SourceClass), path+".source_class")
+		}
+
+		if !isValidMetricStatus(t.Status) {
+			r.addError("format", fmt.Sprintf("telemetry '%s' has invalid status '%s'", t.ID, t.Status), path+".status")
+		}
+
+		if len(t.Aggregations) == 0 {
+			r.addError("format", fmt.Sprintf("telemetry '%s' must have at least one aggregation", t.ID), path+".aggregations")
+		}
+
+		if t.ContextStrategy == nil {
+			r.addError("format", fmt.Sprintf("telemetry '%s' must have context_strategy", t.ID), path+".context_strategy")
+		} else {
+			cs := t.ContextStrategy
+			if cs.DefaultWindow == "" {
+				r.addError("format", fmt.Sprintf("telemetry '%s' context_strategy missing default_window", t.ID), path+".context_strategy.default_window")
+			}
+			if cs.MaxWindow == "" {
+				r.addError("format", fmt.Sprintf("telemetry '%s' context_strategy missing max_window", t.ID), path+".context_strategy.max_window")
+			}
+			if cs.DefaultAggregation == "" {
+				r.addError("format", fmt.Sprintf("telemetry '%s' context_strategy missing default_aggregation", t.ID), path+".context_strategy.default_aggregation")
+			}
+			if cs.DefaultGranularity == "" {
+				r.addError("format", fmt.Sprintf("telemetry '%s' context_strategy missing default_granularity", t.ID), path+".context_strategy.default_granularity")
+			}
+		}
+	}
+
+	// Check metric depends_on references
+	for i, m := range o.Metrics {
+		path := fmt.Sprintf("metrics[%d]", i)
+		for j, dep := range m.DependsOn {
+			dPath := fmt.Sprintf("%s.depends_on[%d]", path, j)
+			switch dep.Type {
+			case "metric":
+				if !metricIDs[dep.Ref] {
+					r.addError("format", fmt.Sprintf("metric '%s' depends_on references unknown metric '%s'", m.ID, dep.Ref), dPath)
+				}
+			case "attribute":
+				parts := strings.SplitN(dep.Ref, ".", 2)
+				if len(parts) == 2 && !classIDs[parts[0]] {
+					r.addError("format", fmt.Sprintf("metric '%s' depends_on references unknown class '%s'", m.ID, parts[0]), dPath)
+				}
+			case "telemetry":
+				if !telemetryIDs[dep.Ref] {
+					r.addError("format", fmt.Sprintf("metric '%s' depends_on references unknown telemetry '%s'", m.ID, dep.Ref), dPath)
+				}
+			case "rule_param":
+				// rule_param references are checked in semantic validation
+			default:
+				r.addError("format", fmt.Sprintf("metric '%s' depends_on has invalid type '%s'", m.ID, dep.Type), dPath)
+			}
 		}
 	}
 }
@@ -196,6 +299,94 @@ func validateSemantic(o *Ontology, r *ValidationResult) {
 			}
 		}
 	}
+
+	// Check metrics: implemented metrics should have tool
+	for _, m := range o.Metrics {
+		if m.Status == "implemented" && m.Tool == "" {
+			r.addWarning("semantic",
+				fmt.Sprintf("metric '%s' is implemented but has no tool", m.ID),
+				fmt.Sprintf("metrics.%s.tool", m.ID))
+		}
+		if m.Status == "undefined" && len(m.KnownIssues) == 0 {
+			r.addWarning("semantic",
+				fmt.Sprintf("metric '%s' is undefined but has no known_issues explaining why", m.ID),
+				fmt.Sprintf("metrics.%s.known_issues", m.ID))
+		}
+	}
+
+	// Check telemetry: implemented should have tool, alert_threshold should have corresponding rule
+	for _, t := range o.Telemetry {
+		if t.Status == "implemented" && t.Tool == "" {
+			r.addWarning("semantic",
+				fmt.Sprintf("telemetry '%s' is implemented but has no tool", t.ID),
+				fmt.Sprintf("telemetry.%s.tool", t.ID))
+		}
+	}
+
+	// P05: graph_sync over-synchronization
+	totalAttrs := 0
+	syncedAttrs := 0
+	for _, c := range o.Classes {
+		for _, a := range c.Attributes {
+			totalAttrs++
+			if a.GraphSync {
+				syncedAttrs++
+			}
+		}
+	}
+	if totalAttrs > 0 {
+		syncPct := float64(syncedAttrs) / float64(totalAttrs) * 100
+		if syncPct > 80 {
+			r.addWarning("semantic",
+				fmt.Sprintf("P05: graph_sync 标记过度：%d/%d (%.0f%%) 属性标记为同步。建议只同步 Agent 查询需要的属性（如数量、状态、关键标记），不同步描述性文字、时间戳等", syncedAttrs, totalAttrs, syncPct),
+				"classes.*.attributes.graph_sync")
+		}
+	}
+
+	// P06: phase diversity check
+	phases := make(map[string]bool)
+	for _, c := range o.Classes {
+		phases[c.Phase] = true
+	}
+	if len(o.Classes) >= 3 && len(phases) == 1 {
+		r.addWarning("semantic",
+			fmt.Sprintf("P06: 所有 %d 个类都在同一个 phase (%s)，缺少分期规划。建议将核心类标记 alpha、辅助类标记 beta、扩展类标记 full", len(o.Classes), o.Classes[0].Phase),
+			"classes.*.phase")
+	}
+
+	// P07: first citizen derived attributes ratio
+	for _, c := range o.Classes {
+		if c.FirstCitizen && len(c.Attributes) >= 10 {
+			derivedCount := 0
+			for _, a := range c.Attributes {
+				if a.Derived != "" || a.Formula != "" {
+					derivedCount++
+				}
+			}
+			pct := float64(derivedCount) / float64(len(c.Attributes)) * 100
+			if pct < 15 {
+				r.addWarning("semantic",
+					fmt.Sprintf("P07: 第一公民 '%s' 派生属性不足：%d/%d (%.0f%%)。建议至少 15%% 的属性为派生计算（如金额、缺口、状态标记等）", c.ID, derivedCount, len(c.Attributes), pct),
+					fmt.Sprintf("classes.%s.attributes", c.ID))
+			}
+		}
+	}
+
+	// P08: rule trigger type diversity
+	if len(o.Rules) >= 3 {
+		triggerCounts := make(map[string]int)
+		for _, rule := range o.Rules {
+			triggerCounts[rule.Trigger.Type]++
+		}
+		for trigType, count := range triggerCounts {
+			pct := float64(count) / float64(len(o.Rules)) * 100
+			if pct > 70 {
+				r.addWarning("semantic",
+					fmt.Sprintf("P08: %.0f%% 的规则使用 '%s' 触发，类型过于单一。建议区分事件驱动 (on_change/after_action) 和定时 (cron) 场景", pct, trigType),
+					"rules.*.trigger")
+			}
+		}
+	}
 }
 
 func (r *ValidationResult) addError(typ, msg, path string) {
@@ -224,4 +415,12 @@ func isValidCardinality(c string) bool {
 		return true
 	}
 	return false
+}
+
+func isValidMetricKind(k string) bool {
+	return k == "aggregate" || k == "composite" || k == "classification"
+}
+
+func isValidMetricStatus(s string) bool {
+	return s == "implemented" || s == "designed" || s == "undefined"
 }

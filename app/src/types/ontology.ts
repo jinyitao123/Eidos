@@ -7,11 +7,13 @@ export interface OntologyAttribute {
   required?: boolean
   unique?: boolean
   default?: string | number | boolean
-  derived?: string
+  derived?: string | boolean
+  formula?: string
   graph_sync?: boolean
   configurable?: boolean
   enum_values?: string[]
   unit?: string
+  value_range?: string
   description?: string
   phase?: string
 }
@@ -31,6 +33,7 @@ export interface EdgeAttribute {
   name: string
   type: string
   description?: string
+  enum_values?: string[]
 }
 
 export interface OntologyRelationship {
@@ -97,13 +100,115 @@ export interface OntologyAction {
   decision_log?: boolean
 }
 
-export interface GraphConfig {
-  structure_sync?: Record<string, unknown>
-  status_sync?: Record<string, unknown>
-  event_sync?: Record<string, unknown>
-  nodes_not_in_graph?: string[]
-  archive_events_after_days?: number
+// --- Metrics ---
+
+export interface MetricBucket {
+  id: string
+  name: string
+  condition: string
+  description?: string
 }
+
+export interface MetricParam {
+  id: string
+  name: string
+  type: string
+  default?: string | number | boolean
+  configurable?: boolean
+  description?: string
+}
+
+export interface MetricDependency {
+  type: 'metric' | 'attribute' | 'telemetry' | 'rule_param'
+  ref: string
+}
+
+export interface OntologyMetric {
+  id: string
+  name: string
+  description: string
+  phase: string
+  kind: 'aggregate' | 'composite' | 'classification'
+  formula?: string
+  buckets?: MetricBucket[]
+  output?: string
+  source_entities: string[]
+  params?: MetricParam[]
+  dimensions?: string[]
+  granularity?: string
+  depends_on?: MetricDependency[]
+  status: 'implemented' | 'designed' | 'undefined'
+  tool?: string
+  known_issues?: string[]
+}
+
+// --- Telemetry ---
+
+export interface TelemetryDimension {
+  id: string
+  values: string[]
+}
+
+export interface ContextStrategy {
+  default_window: string
+  max_window: string
+  default_aggregation: string
+  default_granularity: string
+}
+
+export interface OntologyTelemetry {
+  id: string
+  name: string
+  description: string
+  phase: string
+  source_class: string
+  source_filter?: string
+  value_type: 'decimal' | 'integer' | 'boolean' | 'string'
+  unit: string
+  dimensions?: TelemetryDimension[]
+  sampling: string
+  normal_range?: number[]
+  warning_threshold?: number
+  alert_threshold?: number
+  reference_standard?: string
+  aggregations: string[]
+  context_strategy: ContextStrategy
+  retention?: string
+  tool?: string
+  status: 'implemented' | 'designed' | 'undefined'
+  known_issues?: string[]
+}
+
+// --- Functions ---
+
+export interface FunctionInput {
+  id: string
+  type: string
+  required?: boolean
+  default?: string | number | boolean
+}
+
+export interface FunctionOutputField {
+  id: string
+  type: string
+  description?: string
+}
+
+export interface FunctionOutput {
+  type: string
+  fields?: FunctionOutputField[]
+}
+
+export interface OntologyFunction {
+  id: string
+  name: string
+  description?: string
+  phase?: string
+  inputs?: FunctionInput[]
+  output: FunctionOutput
+}
+
+// --- Top-level Ontology ---
 
 export interface Ontology {
   id: string
@@ -112,13 +217,13 @@ export interface Ontology {
   description?: string
   classes: OntologyClass[]
   relationships: OntologyRelationship[]
+  metrics?: OntologyMetric[]
+  telemetry?: OntologyTelemetry[]
   rules?: OntologyRule[]
   actions?: OntologyAction[]
-  functions?: unknown[]
+  functions?: OntologyFunction[]
   interfaces?: unknown[]
   security?: unknown
-  graph_config?: GraphConfig
-  connector_hints?: unknown
 }
 
 export interface Project {

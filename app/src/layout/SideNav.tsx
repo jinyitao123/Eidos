@@ -69,6 +69,9 @@ export function SideNav() {
           <NavLink to={`/project/${projectId}/report`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
             审核报告
           </NavLink>
+          <NavLink to={`/project/${projectId}/strategy`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
+            策略配置
+          </NavLink>
           <NavLink to={`/project/${projectId}/publish`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
             发布管道
           </NavLink>

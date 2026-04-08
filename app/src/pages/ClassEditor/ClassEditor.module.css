@@ -108,6 +108,7 @@
 .addBtn:hover { text-decoration: underline; }
 
 .newAttrForm { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding: 10px; border: 1px dashed var(--color-border-hover); border-radius: var(--radius-md); }
+.newFormRow { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding: 10px; border: 1px dashed var(--color-border-hover); border-radius: var(--radius-md); flex-wrap: wrap; }
 .formInput { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); background: var(--color-bg-primary); color: var(--color-text-primary); min-width: 100px; }
 .formBtn { font-size: 12px; padding: 5px 12px; border: none; border-radius: var(--radius-md); background: var(--color-text-primary); color: var(--color-bg-primary); cursor: pointer; }
 .formBtnCancel { font-size: 12px; padding: 5px 12px; border: 0.5px solid var(--color-border-hover); border-radius: var(--radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
@@ -135,6 +136,100 @@
 .attrTable tr:hover .dragHandle { opacity: 1; }
 .dragOver { border-top: 2px solid var(--color-info-tone); }
 .dragging { opacity: 0.4; }
+
+/* Metrics & Telemetry cards */
+.metricList { display: flex; flex-direction: column; gap: 10px; }
+
+.metricCard {
+  border: 0.5px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+.metricCard:hover { border-color: var(--color-border-hover); }
+
+.metricHeader { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.metricName { font-size: 14px; font-weight: 500; }
+.metricDesc { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; line-height: 1.5; }
+
+.kindChip { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+.kind_aggregate { background: #E8F4FD; color: #1565C0; }
+.kind_composite { background: #FFF3E0; color: #E65100; }
+.kind_classification { background: #F3E5F5; color: #7B1FA2; }
+
+.statusChip { font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+.status_implemented { background: var(--color-success-tint); color: var(--color-success-tone); }
+.status_designed { background: #FFF8E1; color: #F57F17; }
+.status_undefined { background: var(--color-bg-secondary); color: var(--color-text-tertiary); }
+
+.metricFormula { margin-top: 8px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.metricFormula code { font-family: var(--font-mono, monospace); font-size: 11px; background: var(--color-bg-secondary); padding: 2px 6px; border-radius: 4px; }
+
+.metricLabel { font-size: 11px; color: var(--color-text-tertiary); font-weight: 500; min-width: 48px; }
+
+.metricBuckets { margin-top: 8px; font-size: 12px; }
+.bucketList { display: flex; gap: 4px; flex-wrap: wrap; }
+.bucketChip { font-size: 10px; padding: 2px 8px; border-radius: 99px; background: #F3E5F5; color: #7B1FA2; cursor: help; }
+.bucketGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.bucketItem { padding: 8px 10px; border-radius: var(--radius-md, 6px); border: 0.5px solid var(--color-border-default); background: var(--color-bg-secondary); }
+.bucketHead { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.bucketName { font-size: 12px; font-weight: 500; color: #7B1FA2; }
+.bucketId { font-size: 10px; color: var(--color-text-tertiary); font-family: var(--font-mono, monospace); }
+.bucketCondition { font-size: 11px; color: var(--color-text-primary); font-family: var(--font-mono, monospace); line-height: 1.5; word-break: break-all; }
+.bucketDesc { font-size: 11px; color: var(--color-text-tertiary); margin-top: 3px; }
+
+.metricFieldGrid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.metricField { display: flex; flex-direction: column; gap: 3px; }
+.metricFieldFull { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.metricInput { font-size: 12px; padding: 4px 8px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md, 4px); background: var(--color-bg-primary); color: var(--color-text-primary); }
+.metricInputWide { font-size: 12px; padding: 4px 8px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md, 4px); background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; }
+.metricTextarea { font-size: 12px; padding: 6px 8px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md, 4px); background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; font-family: var(--font-mono, monospace); resize: vertical; line-height: 1.5; }
+
+.metricDimensions { margin-top: 6px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.dimChip { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-secondary); font-family: var(--font-mono, monospace); }
+
+.metricSection { margin-top: 10px; }
+.metricFooter { margin-top: 10px; padding-top: 8px; border-top: 0.5px solid var(--color-border-default); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+.metricTool { font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-mono, monospace); display: flex; align-items: center; gap: 4px; }
+.metricTool code { background: var(--color-bg-secondary); padding: 1px 4px; border-radius: 3px; }
+.autoTag { font-size: 9px; padding: 0 4px; border-radius: 3px; background: #E1F5EE; color: #0F6E56; }
+.customTag { font-size: 9px; padding: 0 4px; border-radius: 3px; background: #FFF3E0; color: #8B5E0A; }
+.statusSelect { font-size: 11px; padding: 2px 6px; border: 0.5px solid var(--color-border-default); border-radius: 4px; background: var(--color-bg-primary); color: var(--color-text-secondary); }
+
+/* Chip row (source_entities, dimensions) */
+.chipRow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.chipTag { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-secondary); font-family: var(--font-mono, monospace); display: flex; align-items: center; gap: 2px; }
+.chipDel { border: none; background: none; color: var(--color-text-tertiary); cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1; }
+.chipDel:hover { color: var(--color-danger-tone, #c00); }
+.chipAdd { font-size: 11px; padding: 2px 6px; border: 1px dashed var(--color-border-default); border-radius: 4px; background: transparent; color: var(--color-text-tertiary); cursor: pointer; }
+
+/* Params table */
+.paramTable { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+.paramTable th { text-align: left; font-weight: 500; color: var(--color-text-tertiary); padding: 3px 4px; font-size: 10px; border-bottom: 0.5px solid var(--color-border-default); }
+.paramTable td { padding: 2px 4px; }
+.paramInput { font-size: 11px; padding: 2px 4px; border: 0.5px solid var(--color-border-default); border-radius: 3px; background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; }
+
+/* Depends_on rows */
+.depAuto { margin-top: 4px; padding: 6px 8px; background: var(--color-bg-secondary); border-radius: var(--radius-md, 4px); }
+.depAutoLabel { font-size: 10px; color: var(--color-text-tertiary); font-weight: 500; display: block; margin-bottom: 4px; }
+.chipTagAuto { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #E8F5E9; color: #2D6A2D; font-family: var(--font-mono, monospace); display: inline-flex; align-items: center; gap: 2px; }
+.depRow { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.depSelect { font-size: 11px; padding: 3px 6px; border: 0.5px solid var(--color-border-default); border-radius: 3px; background: var(--color-bg-primary); color: var(--color-text-primary); min-width: 80px; }
+.depRefGroup { display: flex; align-items: center; gap: 2px; flex: 1; }
+.depDot { color: var(--color-text-tertiary); font-weight: bold; }
+
+/* Bucket editable inputs */
+.bucketInput { font-size: 11px; padding: 2px 4px; border: 0.5px solid var(--color-border-default); border-radius: 3px; background: var(--color-bg-primary); color: var(--color-text-primary); }
+.bucketCondInput { font-size: 11px; padding: 2px 4px; border: 0.5px solid var(--color-border-default); border-radius: 3px; background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; margin-top: 3px; font-family: var(--font-mono, monospace); }
+
+/* Telemetry specific */
+.telemetryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 16px; margin-top: 8px; }
+.telemetryField { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.alertValue { color: var(--color-danger-tone); font-weight: 500; }
+
+.contextStrategy { margin-top: 10px; padding: 8px 10px; background: var(--color-bg-secondary); border-radius: var(--radius-md); }
+.csGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 6px; }
+.csLabel { font-size: 10px; color: var(--color-text-tertiary); display: block; margin-bottom: 2px; }
+.csInput { font-size: 11px; padding: 3px 6px; border: 0.5px solid var(--color-border-default); border-radius: 4px; background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; font-family: var(--font-mono, monospace); }
 
 /* AI float panel */
 .aiFloat { position: fixed; bottom: 24px; right: 24px; z-index: 100; }

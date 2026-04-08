@@ -55,6 +55,34 @@ CREATE TABLE IF NOT EXISTS ontology.documents (
     original_path VARCHAR(500),
     uploaded_at TIMESTAMP DEFAULT now()
 );
+
+-- Industry ontology templates (reusable across customers)
+CREATE TABLE IF NOT EXISTS ontology.ontology_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    industry TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    version TEXT NOT NULL DEFAULT '1.0.0',
+    description TEXT,
+    yaml_content TEXT NOT NULL,
+    param_schema JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Customer strategy profiles (per-project configurable parameters)
+CREATE TABLE IF NOT EXISTS ontology.strategy_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES ontology.projects(id),
+    template_id TEXT NOT NULL,
+    profile_name TEXT NOT NULL DEFAULT 'default',
+    parameters JSONB NOT NULL DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_strategy_profiles_project
+    ON ontology.strategy_profiles(project_id) WHERE is_active = true;
 `
 
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {

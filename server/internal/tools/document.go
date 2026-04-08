@@ -45,6 +45,52 @@ func registerUploadDocument(router *mcp.Router, d *Deps) {
 	})
 }
 
+func registerListDocuments(router *mcp.Router, d *Deps) {
+	router.Register(mcp.ToolDef{
+		Name:        "list_documents",
+		Description: "列出项目下所有已上传的调研文档（返回 document_id、filename，供 read_document 使用）。",
+		InputSchema: mcp.Schema(map[string]any{
+			"project_id": mcp.Prop("string", "项目ID"),
+		}, []string{"project_id"}),
+	}, func(ctx context.Context, args json.RawMessage) *mcp.ToolCallResult {
+		var p struct {
+			ProjectID string `json:"project_id"`
+		}
+		if err := json.Unmarshal(args, &p); err != nil {
+			return mcp.ErrorResult("invalid arguments: " + err.Error())
+		}
+
+		rows, err := d.PG.Query(ctx,
+			`SELECT id::text, filename, length(content) as chars, uploaded_at::text
+			 FROM ontology.documents WHERE project_id::text = $1 ORDER BY uploaded_at`,
+			p.ProjectID,
+		)
+		if err != nil {
+			return mcp.ErrorResult("query failed: " + err.Error())
+		}
+		defer rows.Close()
+
+		var docs []map[string]any
+		for rows.Next() {
+			var id, filename, uploadedAt string
+			var chars int
+			if err := rows.Scan(&id, &filename, &chars, &uploadedAt); err != nil {
+				continue
+			}
+			docs = append(docs, map[string]any{
+				"document_id": id,
+				"filename":    filename,
+				"chars":       chars,
+				"uploaded_at": uploadedAt,
+			})
+		}
+		return mcp.TextResult(map[string]any{
+			"count":     len(docs),
+			"documents": docs,
+		})
+	})
+}
+
 func registerReadDocument(router *mcp.Router, d *Deps) {
 	router.Register(mcp.ToolDef{
 		Name:        "read_document",

@@ -184,6 +184,20 @@ func registerSaveOutput(router *mcp.Router, d *Deps) {
 			return mcp.ErrorResult("content is not valid YAML: " + err.Error())
 		}
 
+		// Reject empty project_id early (auto_save may pass "" if profile missing)
+		if p.ProjectID == "" {
+			return mcp.ErrorResult("project_id is empty — 请确认会话的 profile 中包含 project_id")
+		}
+
+		// Check project exists before INSERT (clearer error than FK violation)
+		var exists bool
+		_ = d.PG.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM ontology.projects WHERE id::text = $1)`,
+			p.ProjectID).Scan(&exists)
+		if !exists {
+			return mcp.ErrorResult("project not found: " + p.ProjectID + " — 请确认项目已创建且 project_id 正确")
+		}
+
 		// Insert stage output
 		_, err := d.PG.Exec(ctx,
 			`INSERT INTO ontology.stage_outputs (project_id, stage, content)

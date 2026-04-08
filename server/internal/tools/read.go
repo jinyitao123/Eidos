@@ -41,6 +41,17 @@ func registerReadReviewReport(router *mcp.Router, d *Deps) {
 	}, readStageHandler(d, "review_report"))
 }
 
+// read_rules_actions — reads S3 output
+func registerReadRulesActions(router *mcp.Router, d *Deps) {
+	router.Register(mcp.ToolDef{
+		Name:        "read_rules_actions",
+		Description: "读取规则设计师（S3）的规则和动作输出。project_id 可选。",
+		InputSchema: mcp.Schema(map[string]any{
+			"project_id": mcp.Prop("string", "本体项目ID（可选）"),
+		}, nil),
+	}, readStageHandler(d, "rules_actions"))
+}
+
 // T07: read_full_ontology_yaml — reads merged S2+S3 output
 func registerReadFullOntologyYAML(router *mcp.Router, d *Deps) {
 	router.Register(mcp.ToolDef{

@@ -27,15 +27,6 @@ type GenerateResult struct {
 // For each class's non-derived attributes, it creates a mapping record.
 // If connector_hints exist for the attribute, they are pre-filled.
 func Generate(o *types.Ontology) *GenerateResult {
-	// Build hint lookup: classID.attrID -> hint
-	hintMap := make(map[string]*types.ConnectorHintAttribute)
-	for _, ch := range o.ConnectorHints {
-		for i := range ch.Attributes {
-			key := ch.ClassID + "." + ch.Attributes[i].AttributeID
-			hintMap[key] = &ch.Attributes[i]
-		}
-	}
-
 	result := &GenerateResult{}
 
 	for _, c := range o.Classes {
@@ -56,17 +47,6 @@ func Generate(o *types.Ontology) *GenerateResult {
 				AttributeType: a.Type,
 				SourceHint:    "",
 				MappingStatus: "unmapped",
-			}
-
-			// Check for pre-existing hints
-			key := c.ID + "." + a.ID
-			if hint, ok := hintMap[key]; ok {
-				if hint.SourceHint != "" {
-					entry.SourceHint = hint.SourceHint
-				}
-				if hint.MappingStatus != "" {
-					entry.MappingStatus = hint.MappingStatus
-				}
 			}
 
 			result.Entries = append(result.Entries, entry)

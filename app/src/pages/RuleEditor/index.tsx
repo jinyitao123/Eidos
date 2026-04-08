@@ -27,22 +27,76 @@ interface ActionDisplay {
   decisionLog: boolean
 }
 
+function normalizeParams(params: unknown): { name: string; value: string; configurable: boolean }[] {
+  if (!params) return []
+  if (Array.isArray(params)) {
+    return params.map((p: Record<string, unknown>) => ({
+      name: String(p.name || ''),
+      value: String(p.default ?? p.value ?? ''),
+      configurable: Boolean(p.configurable),
+    }))
+  }
+  // Object format: { param_name: { default: ..., configurable: ... } } or { param_name: value }
+  if (typeof params === 'object') {
+    return Object.entries(params as Record<string, unknown>).map(([key, val]) => {
+      if (val && typeof val === 'object') {
+        const obj = val as Record<string, unknown>
+        return { name: key, value: String(obj.default ?? obj.value ?? ''), configurable: Boolean(obj.configurable) }
+      }
+      return { name: key, value: String(val ?? ''), configurable: false }
+    })
+  }
+  return []
+}
+
+function normalizeTrigger(trigger: unknown): { type: string; source: string } {
+  if (!trigger) return { type: '', source: '' }
+  if (typeof trigger === 'string') {
+    const map: Record<string, string> = {
+      before_action: '动作执行前', after_action: '动作执行后',
+      on_change: '数据变更', cron: '定时触发', schedule: '定时触发',
+    }
+    return { type: map[trigger] || trigger, source: '' }
+  }
+  const t = trigger as Record<string, unknown>
+  const typeStr = String(t.type || '')
+  const map: Record<string, string> = {
+    before_action: '动作执行前', after_action: '动作执行后',
+    on_change: '数据变更', cron: '定时触发', schedule: '定时触发',
+  }
+  const source = Array.isArray(t.source) ? t.source.join(', ') : String(t.cron || t.source || '')
+  return { type: map[typeStr] || typeStr, source }
+}
+
+function normalizeCondition(condition: unknown): string {
+  if (!condition) return ''
+  if (typeof condition === 'string') return condition
+  const c = condition as Record<string, unknown>
+  if (c.entity && c.expression) return `${c.entity}: ${c.expression}`
+  return JSON.stringify(condition)
+}
+
+function normalizeAction(action: unknown): string {
+  if (!action) return ''
+  if (typeof action === 'string') return action
+  const a = action as Record<string, unknown>
+  let s = String(a.type || '')
+  if (a.target) s += ' → ' + a.target
+  if (a.notify) s += ' → ' + a.notify
+  return s
+}
+
 function mapRule(r: OntologyRule): RuleDisplay {
+  const trigger = normalizeTrigger(r.trigger)
   return {
     id: r.id,
     name: r.name,
     severity: r.severity || 'info',
-    triggerType: r.trigger?.type === 'before_action' ? '动作执行前'
-      : r.trigger?.type === 'after_action' ? '动作执行后'
-      : r.trigger?.type === 'schedule' ? '定时触发' : r.trigger?.type || '',
-    triggerSource: r.trigger?.source?.join(', ') || r.trigger?.cron || '',
-    condition: r.condition ? `${r.condition.entity}: ${r.condition.expression}` : '',
-    action: r.action ? `${r.action.type}${r.action.target ? ' → ' + r.action.target : ''}${r.action.notify ? ' → ' + r.action.notify : ''}` : '',
-    params: (r.params || []).map(p => ({
-      name: p.name,
-      value: String(p.default ?? ''),
-      configurable: p.configurable ?? false,
-    })),
+    triggerType: trigger.type,
+    triggerSource: trigger.source,
+    condition: normalizeCondition(r.condition),
+    action: normalizeAction(r.action),
+    params: normalizeParams(r.params),
   }
 }
 
@@ -231,10 +285,9 @@ export function RuleEditor() {
     try {
       const { dump } = await import('js-yaml')
       const yamlStr = dump(updated, { lineWidth: 120 })
-      await mcpCall('save_output', {
+      await mcpCall('update_ontology_yaml', {
         project_id: projectId,
-        stage: 'rules_actions',
-        content: yamlStr,
+        yaml_content: yamlStr,
       })
       setOntology(updated)
       setRules((updated.rules || []).map(mapRule))

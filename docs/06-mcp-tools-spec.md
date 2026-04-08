@@ -315,18 +315,20 @@ methods: tools/list, tools/call
 
 ---
 
-## 实例图谱查询工具（T11-T15）
+## 实例图谱查询工具（T11-T16）
 
-以下工具供实例图谱浏览器和业务 Agent 使用，查询 Neo4j 中的实例级数据。这些工具由管道 Step 3（Neo4j Schema Generator）自动生成注册框架，由本体 MCP 服务器统一暴露。
+以下工具是本体工具包提供的图谱查询能力，供实例图谱浏览器和业务 Agent 使用，用于查询实例级图谱数据。这些工具由管道 Step 3（Graph Schema Generator）自动生成注册框架，由本体 MCP 服务器统一暴露。
+
+> **实现无关性说明：** 这些工具代表本体工具包对外暴露的图谱查询能力。底层实现可以使用 Neo4j、自定义图引擎、或任何其他图数据库。工具契约（输入 Schema + 输出格式）不因实现方式的变化而改变。调用方只需关注语义操作，无需感知具体的图数据库技术。
 
 ### T11: graph_query_nodes
 
-查询图谱中的实例节点。
+按标签和过滤条件查询实例节点。
 
 ```json
 {
   "name": "graph_query_nodes",
-  "description": "查询 Neo4j 图谱中的实例节点。支持按类类型过滤、按属性过滤、分页。",
+  "description": "按类标签和属性条件查询图谱中的实例节点。支持按类类型过滤、按属性过滤、分页。",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -353,7 +355,7 @@ methods: tools/list, tools/call
 
 ### T12: graph_query_neighbors
 
-查询某个节点的邻居节点和关系。
+查询指定节点的邻居节点和连接关系。
 
 ```json
 {
@@ -388,12 +390,12 @@ methods: tools/list, tools/call
 
 ### T13: graph_traverse
 
-执行图谱推演查询（正向扩散、反向溯源）。
+从起点节点执行多跳遍历（正向扩散、反向溯源）。
 
 ```json
 {
   "name": "graph_traverse",
-  "description": "从起点节点沿关系扩散 N 跳，返回推演路径上的所有节点和边。用于正向扩散和反向溯源推演模式。",
+  "description": "从起点节点沿关系扩散 N 跳，返回遍历路径上的所有节点和边。用于正向扩散和反向溯源推演模式。",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -434,7 +436,7 @@ methods: tools/list, tools/call
 
 ### T14: graph_shortest_path
 
-发现两个节点之间的最短路径。
+查找两个节点之间的最短路径。
 
 ```json
 {
@@ -548,7 +550,9 @@ methods: tools/list, tools/call
 
 ---
 
-## 数据存储
+## 数据存储（本体工具包内部元数据）
+
+以下表属于本体工具包自身的内部存储，用于管理本体项目的元数据、构建阶段输出、版本历史和上传文档。这些不是业务数据存储——业务数据的表结构由管道根据本体 YAML 自动生成到各自的 schema 中（如 `spareparts.*`）。
 
 ### 项目元数据表
 

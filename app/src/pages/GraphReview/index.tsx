@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { fetchOntology, fetchProject } from '../../api/ontology'
 import { mcpCall } from '../../api/mcp'
 import { weavePost } from '../../api/client'
-import type { Ontology, OntologyClass as OntClass, OntologyRelationship } from '../../types/ontology'
+import type { Ontology, OntologyClass as OntClass, OntologyRelationship, OntologyMetric } from '../../types/ontology'
 import { PromptModal, AlertModal, ConfirmModal, Modal } from '../../components/Modal'
 import styles from './GraphReview.module.css'
 
@@ -66,6 +66,17 @@ interface ConnectForm {
   toClassId: string
 }
 
+function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
+  const startRad = (startDeg - 90) * Math.PI / 180
+  const endRad = (endDeg - 90) * Math.PI / 180
+  const x1 = cx + r * Math.cos(startRad)
+  const y1 = cy + r * Math.sin(startRad)
+  const x2 = cx + r * Math.cos(endRad)
+  const y2 = cy + r * Math.sin(endRad)
+  const largeArc = endDeg - startDeg > 180 ? 1 : 0
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`
+}
+
 export function GraphReview() {
   const { projectId } = useParams()
   const navigate = useNavigate()
@@ -89,6 +100,7 @@ export function GraphReview() {
   const [instanceNodePositions, setInstanceNodePositions] = useState<InstanceNodePos[]>([])
   const instanceCanvasRef = useRef<HTMLDivElement>(null)
   const [instanceViewBox, setInstanceViewBox] = useState({ x: 0, y: 0, w: 800, h: 480 })
+
 
   // Schema view state
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
@@ -122,6 +134,14 @@ export function GraphReview() {
   const [connectForm, setConnectForm] = useState<ConnectForm | null>(null)
   const connectNameRef = useRef<HTMLInputElement>(null)
   const connectCardRef = useRef<HTMLSelectElement>(null)
+
+  // Metric highlight state
+  const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null)
+  const highlightedClasses = new Set<string>()
+  if (highlightedMetric && ontology?.metrics) {
+    const m = ontology.metrics.find(x => x.id === highlightedMetric)
+    if (m) for (const e of m.source_entities || []) highlightedClasses.add(e)
+  }
 
   // AI assistant state (Feature 3)
   const [showAiModal, setShowAiModal] = useState(false)
@@ -193,11 +213,12 @@ export function GraphReview() {
     // Initialize viewBox based on canvas dimensions
     setViewBox({ x: 0, y: 0, w, h })
 
-    // Initialize positions in a circle
-    if (nodesRef.current.length !== classes.length) {
+    // Initialize positions in a circle (re-init if node count or canvas size changed significantly)
+    const prevW = nodesRef.current.length > 0 ? Math.max(...nodesRef.current.map(n => n.x)) - Math.min(...nodesRef.current.map(n => n.x)) : 0
+    if (nodesRef.current.length !== classes.length || prevW < w * 0.3) {
       nodesRef.current = classes.map((c, i) => {
         const angle = (2 * Math.PI * i) / classes.length - Math.PI / 2
-        const radius = Math.min(w, h) * 0.3
+        const radius = Math.min(w, h) * 0.38
         return {
           id: c.id,
           x: cx + radius * Math.cos(angle),
@@ -210,12 +231,13 @@ export function GraphReview() {
     const nodes = nodesRef.current
     const posMap = new Map(nodes.map(n => [n.id, n]))
 
-    // Force simulation parameters
+    // Force simulation parameters - scale with canvas size
+    const scale = Math.sqrt(w * h) / 600
     const alpha = 0.3
-    const centerStrength = 0.01
-    const repulsionStrength = 2000
-    const linkStrength = 0.05
-    const linkDistance = 120
+    const centerStrength = 0.008
+    const repulsionStrength = 3000 * scale
+    const linkStrength = 0.04
+    const linkDistance = 140 * scale
     const damping = 0.7
 
     let iterations = 0
@@ -285,67 +307,101 @@ export function GraphReview() {
 
   useEffect(() => {
     if (tab === 'schema') {
-      runForceSimulation()
+      // Delay one frame to ensure fullWidth CSS has applied and canvas has correct dimensions
+      const raf = requestAnimationFrame(() => {
+        nodesRef.current = [] // Force re-init with correct canvas size
+        runForceSimulation()
+      })
+      return () => { cancelAnimationFrame(raf); cancelAnimationFrame(animRef.current) }
     }
     return () => cancelAnimationFrame(animRef.current)
   }, [runForceSimulation, tab])
 
-  // Instance view - load data and build force graph
+  // Instance view - load via graph_traverse for complete graph
   useEffect(() => {
-    if (tab !== 'instance' || !projectId) return
+    if (tab !== 'instance' || !projectId || !ontology) return
     setInstanceLoading(true)
     setInstanceError('')
     setInstanceNodes([])
     setInstanceEdges([])
     setSelectedNode(null)
 
+    // Map Neo4j label → ontology class id
+    const labelToClassId = new Map<string, string>()
+    for (const cls of ontology.classes) {
+      const neo4jLabel = cls.id.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('')
+      labelToClassId.set(neo4jLabel, cls.id)
+    }
+
     const loadInstanceData = async () => {
       try {
-        // Fetch stats
         const stats = await mcpCall<InstanceStats>('graph_stats', { ontology_id: projectId }).catch(() => null)
         if (stats) setInstanceStats(stats)
 
-        // Fetch first citizen nodes
-        if (!ontology) { setInstanceLoading(false); return }
-        const fc = ontology.classes.find(c => c.first_citizen)
-        if (!fc) { setInstanceLoading(false); return }
+        // Get starting nodes from multiple classes to ensure full coverage
+        const nodeMap = new Map<string, InstanceNode>()
+        const edgeSet = new Set<string>()
+        const edges: InstanceEdge[] = []
 
-        const label = fc.id.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('')
-        const result = await mcpCall<{ nodes: InstanceNode[] }>('graph_query_nodes', {
-          project_id: projectId, class_id: fc.id, label, limit: 50,
-        }).catch(() => ({ nodes: [] }))
+        type TraversalResult = {
+          paths: Array<{ nodes: Array<{ id: string; label: string; properties: Record<string, unknown> }>; relationships: Array<{ from: string; to: string; type: string }> }>
+        }
 
-        const nodes = (result.nodes || []).map(n => ({ ...n, classId: fc.id, relationshipCount: 0 }))
-        setInstanceNodes(nodes)
+        // Load all nodes from each class, then traverse for edges
+        for (const cls of ontology.classes) {
+          const neo4jLabel = cls.id.split('_').map((w: string) => w[0].toUpperCase() + w.slice(1)).join('')
+          if (!stats?.by_label?.[neo4jLabel]) continue
 
-        // For each node, try to fetch neighbors to build edges
-        const allEdges: InstanceEdge[] = []
-        const neighborNodes: InstanceNode[] = []
-        const seenIds = new Set(nodes.map(n => n.id))
+          const result = await mcpCall<{ nodes: InstanceNode[] }>('graph_query_nodes', {
+            project_id: projectId, class_id: cls.id, label: neo4jLabel, limit: 50,
+          }).catch(() => ({ nodes: [] }))
 
-        for (const node of nodes.slice(0, 10)) {
-          try {
-            const neighbors = await mcpCall<{ nodes?: InstanceNode[]; edges?: InstanceEdge[] }>(
-              'graph_query_neighbors', { project_id: projectId, node_id: node.id, depth: 1 }
-            )
-            if (neighbors.edges) allEdges.push(...neighbors.edges)
-            if (neighbors.nodes) {
-              for (const nn of neighbors.nodes) {
-                if (!seenIds.has(nn.id)) {
-                  seenIds.add(nn.id)
-                  neighborNodes.push(nn)
-                }
-              }
+          for (const n of result.nodes || []) {
+            if (!nodeMap.has(n.id)) {
+              nodeMap.set(n.id, {
+                id: n.id,
+                label: n.label || neo4jLabel,
+                classId: labelToClassId.get(n.label || neo4jLabel) || cls.id,
+                properties: n.properties,
+              })
             }
-            // Update relationship count
-            node.relationshipCount = (neighbors.edges || []).length
-          } catch {
-            // Neighbor query may fail, continue
           }
         }
 
-        setInstanceNodes(prev => [...prev, ...neighborNodes])
-        setInstanceEdges(allEdges)
+        // Traverse from a few starting nodes to get edges
+        const startNodes = [...nodeMap.values()].filter(n => n.classId === ontology.classes.find(c => c.first_citizen)?.id).slice(0, 5)
+        for (const sn of startNodes) {
+          const traversal = await mcpCall<TraversalResult>('graph_traverse', {
+            start_node_id: sn.id,
+            direction: 'both',
+            max_hops: 2,
+          }).catch(() => ({ paths: [] }))
+
+          for (const path of traversal.paths || []) {
+            for (const r of path.relationships || []) {
+              const key = `${r.from}-${r.type}-${r.to}`
+              if (!edgeSet.has(key)) {
+                edgeSet.add(key)
+                edges.push({ from: r.from, to: r.to, type: r.type })
+              }
+            }
+          }
+        }
+
+        // Count relationships per node
+        const relCounts = new Map<string, number>()
+        for (const e of edges) {
+          relCounts.set(e.from, (relCounts.get(e.from) || 0) + 1)
+          relCounts.set(e.to, (relCounts.get(e.to) || 0) + 1)
+        }
+
+        const allNodes = [...nodeMap.values()].map(n => ({
+          ...n,
+          relationshipCount: relCounts.get(n.id) || 0,
+        }))
+
+        setInstanceNodes(allNodes)
+        setInstanceEdges(edges)
       } catch (e) {
         setInstanceError(e instanceof Error ? e.message : 'Failed to load instance data')
       } finally {
@@ -389,7 +445,8 @@ export function GraphReview() {
       classColors[cid] = palette[i % palette.length]
     })
 
-    // Initialize positions
+    // Only re-initialize if node count changed
+    if (instanceNodesRef.current.length === instanceNodes.length) return
     instanceNodesRef.current = instanceNodes.map((n, i) => {
       const angle = (2 * Math.PI * i) / instanceNodes.length - Math.PI / 2
       const radius = Math.min(w, h) * 0.35
@@ -416,14 +473,15 @@ export function GraphReview() {
 
     const nodes = instanceNodesRef.current
     const posMap = new Map(nodes.map(n => [n.id, n]))
-    const centerStrength = 0.01
-    const repulsionStrength = 1500
-    const linkStrength = 0.04
-    const linkDistance = 100
+    const scale = Math.sqrt(w * h) / 600  // scale params with canvas size
+    const centerStrength = 0.008
+    const repulsionStrength = 3000 * scale
+    const linkStrength = 0.03
+    const linkDistance = 120 * scale
     const damping = 0.7
     const alpha = 0.3
     let iterations = 0
-    const maxIterations = 120
+    const maxIterations = 150
 
     function tick() {
       if (iterations >= maxIterations) {
@@ -670,19 +728,37 @@ export function GraphReview() {
   const classes = ontology?.classes || []
   const posMap = new Map(nodePositions.map(n => [n.id, n]))
 
+  // Build metric/telemetry lookup by class ID
+  const metricsByClass = new Map<string, OntologyMetric[]>()
+  for (const m of ontology?.metrics || []) {
+    for (const classId of m.source_entities || []) {
+      const arr = metricsByClass.get(classId) || []
+      arr.push(m)
+      metricsByClass.set(classId, arr)
+    }
+  }
+  const telemetryByClass = new Map<string, number>()
+  for (const t of ontology?.telemetry || []) {
+    telemetryByClass.set(t.source_class, (telemetryByClass.get(t.source_class) || 0) + 1)
+  }
+
   return (
-    <div style={{ position: 'relative' }}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>{projectName || '图谱审核'}</h2>
-        <div className={styles.actions}>
+    <div style={{ position: 'relative', maxWidth: 'none', margin: 0, height: 'calc(100vh - 52px)', display: 'flex', flexDirection: 'column', marginLeft: -32, marginRight: -32, marginTop: -24, marginBottom: -24, width: 'calc(100% + 64px)' }}>
+      <div className={styles.toolbar}>
+        <h2 className={styles.toolbarTitle}>{projectName || '图谱审核'}</h2>
+        <div className={styles.toolbarTabs}>
+          <button className={`${styles.toolbarTab} ${tab === 'schema' ? styles.toolbarTabActive : ''}`} onClick={() => setTab('schema')}>结构视图</button>
+        </div>
+        <div className={styles.toolbarStats}>
+          <span>类 {classList.length}</span>
+          <span>关系 {relCount}</span>
+          <span>指标 {ontology?.metrics?.length || 0}</span>
+          <span>遥测 {ontology?.telemetry?.length || 0}</span>
+        </div>
+        <div className={styles.toolbarActions}>
           <button className={styles.btnSecondary} onClick={() => navigate(`/project/${projectId}/report`)}>审核报告</button>
           <button className={styles.btnPrimary} onClick={() => navigate(`/project/${projectId}/publish`)}>发布</button>
         </div>
-      </div>
-
-      <div className={styles.tabs}>
-        <button className={`${styles.tab} ${tab === 'schema' ? styles.tabActive : ''}`} onClick={() => setTab('schema')}>结构视图</button>
-        <button className={`${styles.tab} ${tab === 'instance' ? styles.tabActive : ''}`} onClick={() => setTab('instance')}>实例视图</button>
       </div>
 
       {tab === 'schema' && (
@@ -708,8 +784,44 @@ export function GraphReview() {
               <div className={styles.classItem} onClick={() => navigate(`/project/${projectId}/rules`)}>
                 动作（{ontology?.actions?.length || 0}）
               </div>
+              {(ontology?.metrics?.length || 0) > 0 && (
+                <>
+                  <div className={styles.sidebarDivider} />
+                  <div className={styles.sidebarTitle}>指标（{ontology?.metrics?.length}）</div>
+                  {ontology?.metrics?.map(m => (
+                    <div key={m.id}
+                      className={`${styles.classItem} ${highlightedMetric === m.id ? styles.classItemActive : ''}`}
+                      onClick={() => setHighlightedMetric(highlightedMetric === m.id ? null : m.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className={styles.statusDot} style={{
+                        background: m.status === 'implemented' ? '#2D6A2D'
+                          : m.status === 'designed' ? '#8B5E0A' : '#A09A94'
+                      }} />
+                      <span style={{ flex: 1 }}>{m.name}</span>
+                      <span className={styles.classCount}>{(m.kind || '')[0]?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {(ontology?.telemetry?.length || 0) > 0 && (
+                <>
+                  <div className={styles.sidebarDivider} />
+                  <div className={styles.sidebarTitle}>遥测（{ontology?.telemetry?.length}）</div>
+                  {ontology?.telemetry?.map(t => (
+                    <div key={t.id} className={styles.classItem}>
+                      <span className={styles.statusDot} style={{
+                        background: t.status === 'implemented' ? '#2D6A2D'
+                          : t.status === 'designed' ? '#8B5E0A' : '#A09A94'
+                      }} />
+                      <span style={{ flex: 1 }}>{t.name}</span>
+                    </div>
+                  ))}
+                </>
+              )}
               <div className={styles.sidebarDivider} />
               <div className={styles.addClassBtn} onClick={handleAddClass}>+ 新增类</div>
+
             </div>
 
             {/* Graph canvas */}
@@ -777,7 +889,11 @@ export function GraphReview() {
                     const stroke = isFC ? '#993C1D' : isEvent ? '#534AB7' : '#0F6E56'
                     const r = isFC ? 30 : 24
                     const attrCount = cls.attributes?.length || 0
+                    const metricCount = metricsByClass.get(cls.id)?.length || 0
+                    const telemetryCount = telemetryByClass.get(cls.id) || 0
                     const isSelected = selectedClass === cls.id
+                    const isHighlighted = highlightedClasses.has(cls.id)
+                    const hasAnnotation = metricCount > 0 || telemetryCount > 0
                     return (
                       <g key={cls.id}
                         style={{ cursor: 'pointer' }}
@@ -791,9 +907,20 @@ export function GraphReview() {
                         }}
                         onClick={() => { if (!draggingNode) navigate(`/project/${projectId}/class/${cls.id}`) }}
                       >
-                        <circle cx={p.x} cy={p.y} r={r} fill={fill} stroke={stroke} strokeWidth={isSelected ? 3 : 1.5} />
+                        <circle cx={p.x} cy={p.y} r={r} fill={fill} stroke={isHighlighted ? '#1A56A0' : stroke} strokeWidth={isSelected || isHighlighted ? 3 : 1.5} />
+                        {metricCount > 0 && (
+                          <path d={describeArc(p.x, p.y, r + 2, 210, 250)} fill="none" stroke="#1A56A0" strokeWidth="3" strokeLinecap="round" />
+                        )}
+                        {telemetryCount > 0 && (
+                          <path d={describeArc(p.x, p.y, r + 2, 290, 330)} fill="none" stroke="#8B5E0A" strokeWidth="3" strokeLinecap="round" />
+                        )}
                         <text x={p.x} y={p.y + r + 14} textAnchor="middle" fontSize="11" fontWeight="500" fill="var(--color-text-primary)">{cls.name}</text>
-                        <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="10" fill={stroke}>{attrCount}</text>
+                        <text x={p.x} y={hasAnnotation ? p.y + 1 : p.y + 4} textAnchor="middle" fontSize="10" fill={stroke}>{attrCount}</text>
+                        {hasAnnotation && (
+                          <text x={p.x} y={p.y + 11} textAnchor="middle" fontSize="7" fill="var(--color-text-tertiary)">
+                            {metricCount > 0 ? `M${metricCount}` : ''}{metricCount > 0 && telemetryCount > 0 ? ' ' : ''}{telemetryCount > 0 ? `T${telemetryCount}` : ''}
+                          </text>
+                        )}
                       </g>
                     )
                   })}
@@ -814,68 +941,28 @@ export function GraphReview() {
                   )}
                 </svg>
               )}
+              {/* Legend overlay */}
+              <div className={styles.svgLegend}>
+                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#FAECE7', border: '1px solid #993C1D' }} />第一公民</span>
+                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#E1F5EE', border: '1px solid #0F6E56' }} />核心类</span>
+                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#EEEDFE', border: '1px solid #534AB7' }} />事件类</span>
+                <span className={styles.legendItem}><span style={{ display: 'inline-block', width: 12, height: 2, background: '#1A56A0', borderRadius: 1 }} />指标</span>
+                <span className={styles.legendItem}><span style={{ display: 'inline-block', width: 12, height: 2, background: '#8B5E0A', borderRadius: 1 }} />遥测</span>
+              </div>
             </div>
           </div>
 
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              <span className={styles.dot} style={{ background: '#FAECE7', border: '1.5px solid #993C1D' }} />
-              第一公民
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.dot} style={{ background: '#E1F5EE', border: '1.5px solid #0F6E56' }} />
-              核心类
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.dot} style={{ background: '#EEEDFE', border: '1.5px solid #534AB7' }} />
-              事件/快照类
-            </span>
-            <span className={styles.legendItem}>
-              <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '1.5px solid var(--color-border-hover)', verticalAlign: 'middle' }} />
-              关系
-            </span>
-          </div>
-
-          {ontology && (
-            <div className={styles.statsBar}>
-              <span>类 {classList.length}</span>
-              <span>关系 {relCount}</span>
-              <span>规则 {ontology.rules?.length || 0}</span>
-              <span>动作 {ontology.actions?.length || 0}</span>
-            </div>
-          )}
-
-          <div style={{ position: 'relative' }}>
-            <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
-              Shift + 拖拽节点可创建关系
-            </p>
-          </div>
         </>
       )}
 
       {tab === 'instance' && (
         <div className={styles.instanceView}>
-          {/* Stats bar */}
-          {instanceStats && (
-            <div className={styles.instanceStatsBar}>
-              <span className={styles.statItem}>{instanceStats.total_nodes} 节点</span>
-              <span className={styles.statItem}>{instanceStats.total_relationships} 关系</span>
-              {instanceStats.by_label && Object.entries(instanceStats.by_label).map(([label, count]) => (
-                <span key={label} className={styles.statChip}>{label} {count as number}</span>
-              ))}
-            </div>
-          )}
-
           {instanceLoading ? (
             <div className={styles.placeholder}><p>加载实例数据...</p></div>
           ) : instanceError ? (
             <div className={styles.placeholder}><p>{instanceError}</p></div>
           ) : instanceNodes.length === 0 ? (
-            <div className={styles.instanceEmpty}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
+            <div className={styles.placeholder}>
               <p>暂无实例数据</p>
               <p className={styles.sub}>本体发布并同步到 Neo4j 后，此处将显示实际数据节点</p>
             </div>
@@ -887,69 +974,90 @@ export function GraphReview() {
                   viewBox={`${instanceViewBox.x} ${instanceViewBox.y} ${instanceViewBox.w} ${instanceViewBox.h}`}
                   style={{ cursor: 'grab' }}
                 >
-                  {/* Instance edges */}
+                  {/* Edges with hover labels */}
                   {instanceEdges.map((edge, i) => {
                     const from = instanceNodePositions.find(n => n.id === edge.from)
                     const to = instanceNodePositions.find(n => n.id === edge.to)
                     if (!from || !to) return null
+                    const isRelated = selectedNode && (edge.from === selectedNode.id || edge.to === selectedNode.id)
+                    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2
                     return (
-                      <g key={`edge-${i}`}>
+                      <g key={`edge-${i}`} className={styles.edge}>
                         <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                          stroke="var(--color-border-hover)" strokeWidth="1" opacity="0.5" />
+                          stroke={isRelated ? '#993C1D' : 'var(--color-border-hover)'}
+                          strokeWidth={isRelated ? 2 : 1} opacity={selectedNode && !isRelated ? 0.15 : 0.5} />
+                        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="transparent" strokeWidth="10" />
                         {edge.type && (
-                          <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 4}
-                            fontSize="8" fill="var(--color-text-tertiary)" textAnchor="middle">
-                            {edge.type}
-                          </text>
+                          <text x={mx} y={my - 4} fontSize="8" fill="var(--color-text-tertiary)" textAnchor="middle" opacity={isRelated ? 1 : 0.5}>{edge.type}</text>
                         )}
                       </g>
                     )
                   })}
-                  {/* Instance nodes */}
+                  {/* Nodes with class coloring */}
                   {instanceNodePositions.map(p => {
                     const isSelected = selectedNode?.id === p.id
-                    const shortLabel = p.label.length > 16 ? p.label.slice(0, 14) + '..' : p.label
-                    const classShort = (p.classId || '').split('_').map((w: string) => w[0]?.toUpperCase()).join('')
+                    const isNeighbor = selectedNode && instanceEdges.some(e => (e.from === selectedNode.id && e.to === p.id) || (e.to === selectedNode.id && e.from === p.id))
+                    const dimmed = selectedNode && !isSelected && !isNeighbor
+                    const node = instanceNodes.find(n => n.id === p.id)
+                    const props = node?.properties || {}
+                    // Smart label: name > code > sparePartId+warehouseId > id
+                    let displayName = (props.name as string) || (props.code as string) || ''
+                    if (!displayName && props.sparePartId) {
+                      displayName = `${(props.warehouseId as string || '').replace('WH-', '')}·${props.sparePartId}`
+                    }
+                    if (!displayName) displayName = p.label
+                    const shortLabel = displayName.length > 14 ? displayName.slice(0, 12) + '..' : displayName
+                    const className = ontology?.classes?.find(c => c.id === p.classId)?.name || p.classId
+                    const classAbbr = (className || '').slice(0, 2)
                     if (p.isRect) {
-                      // First citizen: rectangle
-                      const hw = Math.max(p.radius, 28)
-                      const hh = Math.max(p.radius * 0.7, 18)
+                      const hw = Math.max(p.radius, 28), hh = Math.max(p.radius * 0.65, 16)
                       return (
-                        <g key={p.id} style={{ cursor: 'pointer' }} onClick={() => handleInstanceNodeClick(instanceNodes.find(n => n.id === p.id)!)}>
+                        <g key={p.id} style={{ cursor: 'pointer' }} opacity={dimmed ? 0.2 : 1}
+                          onClick={() => handleInstanceNodeClick(instanceNodes.find(n => n.id === p.id)!)}>
                           <rect x={p.x - hw} y={p.y - hh} width={hw * 2} height={hh * 2}
-                            rx={4} fill={p.fill} stroke={p.stroke} strokeWidth={isSelected ? 2.5 : 1.5} />
-                          <text x={p.x} y={p.y} textAnchor="middle" fontSize="10" fontWeight="600" fill={p.stroke}>
-                            {shortLabel}
-                          </text>
-                          <text x={p.x} y={p.y + 12} textAnchor="middle" fontSize="8" fill={p.stroke} opacity={0.6}>
-                            {classShort}
-                          </text>
+                            rx={4} fill={p.fill} stroke={p.stroke} strokeWidth={isSelected ? 3 : 1.5} />
+                          <text x={p.x} y={p.y - 1} textAnchor="middle" fontSize="9" fontWeight="600" fill={p.stroke}>{shortLabel}</text>
+                          <text x={p.x} y={p.y + 10} textAnchor="middle" fontSize="7" fill={p.stroke} opacity="0.5">{classAbbr}</text>
                         </g>
                       )
                     }
                     return (
-                      <g key={p.id} style={{ cursor: 'pointer' }} onClick={() => handleInstanceNodeClick(instanceNodes.find(n => n.id === p.id)!)}>
-                        <circle cx={p.x} cy={p.y} r={p.radius} fill={p.fill} stroke={p.stroke} strokeWidth={isSelected ? 2.5 : 1.5} />
-                        <text x={p.x} y={p.y} textAnchor="middle" fontSize="10" fontWeight="600" fill={p.stroke}>
-                          {shortLabel}
-                        </text>
-                        <text x={p.x} y={p.y + 12} textAnchor="middle" fontSize="8" fill={p.stroke} opacity={0.6}>
-                          {classShort}
-                        </text>
+                      <g key={p.id} style={{ cursor: 'pointer' }} opacity={dimmed ? 0.2 : 1}
+                        onClick={() => handleInstanceNodeClick(instanceNodes.find(n => n.id === p.id)!)}>
+                        <circle cx={p.x} cy={p.y} r={p.radius} fill={p.fill} stroke={p.stroke} strokeWidth={isSelected ? 3 : 1.5} />
+                        <text x={p.x} y={p.y - 1} textAnchor="middle" fontSize="9" fontWeight="500" fill={p.stroke}>{shortLabel}</text>
+                        <text x={p.x} y={p.y + 10} textAnchor="middle" fontSize="7" fill={p.stroke} opacity="0.5">{classAbbr}</text>
                       </g>
                     )
                   })}
                 </svg>
+                {/* Instance legend */}
+                <div className={styles.svgLegend}>
+                  {instanceStats && <span style={{ fontWeight: 500 }}>{instanceStats.total_nodes} 节点 · {instanceStats.total_relationships} 关系</span>}
+                  {instanceStats?.by_label && Object.entries(instanceStats.by_label).map(([label, count]) => (
+                    <span key={label} className={styles.statChip}>{label} {count as number}</span>
+                  ))}
+                </div>
               </div>
 
               {/* Detail panel */}
               {selectedNode && (
                 <div className={styles.instanceDetailPanel}>
-                  <div className={styles.detailTitle}>{selectedNode.label}</div>
+                  <div className={styles.detailTitle}>{(selectedNode.properties?.name as string) || selectedNode.id}</div>
                   <div className={styles.detailId}>{selectedNode.id}</div>
                   {selectedNode.classId && (
                     <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>
-                      Class: {selectedNode.classId}
+                      {ontology?.classes?.find(c => c.id === selectedNode!.classId)?.name || selectedNode.classId}
+                    </div>
+                  )}
+                  {instanceEdges.filter(e => e.from === selectedNode!.id || e.to === selectedNode!.id).length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--color-text-tertiary)', marginBottom: 4 }}>关系</div>
+                      {instanceEdges.filter(e => e.from === selectedNode!.id || e.to === selectedNode!.id).map((e, i) => {
+                        const other = e.from === selectedNode!.id ? e.to : e.from
+                        const dir = e.from === selectedNode!.id ? '→' : '←'
+                        return <div key={i} style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 2 }}>{dir} {e.type} {other}</div>
+                      })}
                     </div>
                   )}
                   <div className={styles.detailProps}>
