@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
+import { FolderOpen, MessageSquare, GitFork, BookOpen, ClipboardCheck, Sliders, Rocket } from 'lucide-react'
 import styles from './SideNav.module.css'
 
 async function loadProjectName(projectId: string): Promise<string> {
@@ -50,7 +51,7 @@ export function SideNav() {
           `${styles.navItem} ${isActive && !projectId ? styles.active : ''}`
         }
       >
-        项目列表
+        <FolderOpen size={15} /> 项目列表
       </NavLink>
 
       {projectId && (
@@ -58,22 +59,22 @@ export function SideNav() {
           <div className={styles.divider} />
           <div className={styles.projectName}>{projectName || '当前项目'}</div>
           <NavLink to={`/project/${projectId}/build`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            构建对话
+            <MessageSquare size={15} /> 构建对话
           </NavLink>
           <NavLink to={`/project/${projectId}/graph`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            图谱审核
+            <GitFork size={15} /> 图谱审核
           </NavLink>
           <NavLink to={`/project/${projectId}/rules`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            规则编辑
+            <BookOpen size={15} /> 规则编辑
           </NavLink>
           <NavLink to={`/project/${projectId}/report`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            审核报告
+            <ClipboardCheck size={15} /> 审核报告
           </NavLink>
           <NavLink to={`/project/${projectId}/strategy`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            策略配置
+            <Sliders size={15} /> 策略配置
           </NavLink>
           <NavLink to={`/project/${projectId}/publish`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            发布管道
+            <Rocket size={15} /> 发布管道
           </NavLink>
         </>
       )}

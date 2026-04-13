@@ -1,7 +1,7 @@
 .back { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; margin-bottom: 12px; }
 .header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .title { font-size: 18px; font-weight: 500; }
-.badge { font-size: 11px; padding: 2px 10px; border-radius: 99px; font-weight: 500; background: var(--color-success-tint); color: var(--color-success-tone); }
+.badge { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; background: var(--color-success-tint); color: var(--color-success-tone); }
 .subtitle { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 16px; }
 
 .versionBar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); margin-bottom: 16px; font-size: 12px; background: var(--color-bg-secondary); }

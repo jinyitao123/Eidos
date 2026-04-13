@@ -6,14 +6,14 @@
 .tab { padding: 8px 14px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -0.5px; }
 .tabActive { color: var(--color-text-primary); font-weight: 500; border-bottom-color: var(--color-text-primary); }
 
-.ruleCard { border: 0.5px solid var(--color-border-default); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; background: var(--color-bg-primary); }
-.ruleCard:hover { border-color: var(--color-border-hover); }
+.ruleCard { border: none; border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; background: var(--color-bg-primary); box-shadow: var(--shadow-card); transition: box-shadow var(--duration-medium) var(--ease-out), transform var(--duration-medium) var(--ease-out); }
+.ruleCard:hover { box-shadow: var(--shadow-elevated); transform: translateY(-1px); }
 
 .ruleTop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .ruleId { font-family: var(--font-mono); font-size: 12px; color: var(--color-text-tertiary); background: var(--color-bg-secondary); padding: 2px 8px; border-radius: 4px; }
 .ruleName { font-size: 14px; font-weight: 500; margin-left: 8px; }
 
-.severity { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.severity { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; }
 .sevWarn { background: var(--color-warning-tint); color: var(--color-warning-tone); }
 .sevDanger { background: var(--color-danger-tint); color: var(--color-danger-tone); }
 .sevInfo { background: var(--color-info-tint); color: var(--color-info-tone); }
@@ -36,7 +36,7 @@
 .sep { height: 0.5px; background: var(--color-border-default); margin: 16px 0; }
 .sectionTitle { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
 
-.actionCard { border: 0.5px solid var(--color-border-default); border-radius: var(--radius-lg); padding: 14px; margin-bottom: 10px; background: var(--color-bg-primary); }
+.actionCard { border: none; border-radius: var(--radius-lg); padding: 14px; margin-bottom: 10px; background: var(--color-bg-primary); box-shadow: var(--shadow-card); transition: box-shadow var(--duration-medium) var(--ease-out); }
 .actionWrites { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
 .triggerTags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .triggerTag { font-size: 10px; padding: 2px 8px; border-radius: 4px; }

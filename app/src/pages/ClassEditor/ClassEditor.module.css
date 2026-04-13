@@ -117,7 +117,7 @@
 .relList { display: flex; flex-direction: column; gap: 8px; }
 .emptyRel { font-size: 13px; color: var(--color-text-tertiary); padding: 20px; text-align: center; }
 
-.relCard { border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); padding: 10px 14px; }
+.relCard { border: none; border-radius: var(--radius-md); padding: 10px 14px; box-shadow: var(--shadow-card); transition: box-shadow var(--duration-medium) var(--ease-out); }
 .relLine { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .relFrom { font-weight: 500; }
 .relTo { font-weight: 500; color: var(--color-info-tone); cursor: pointer; }
@@ -141,11 +141,13 @@
 .metricList { display: flex; flex-direction: column; gap: 10px; }
 
 .metricCard {
-  border: 0.5px solid var(--color-border-default);
+  border: none;
   border-radius: var(--radius-md);
   padding: 12px 16px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration-medium) var(--ease-out), transform var(--duration-medium) var(--ease-out);
 }
-.metricCard:hover { border-color: var(--color-border-hover); }
+.metricCard:hover { box-shadow: var(--shadow-elevated); transform: translateY(-1px); }
 
 .metricHeader { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .metricName { font-size: 14px; font-weight: 500; }
@@ -233,9 +235,9 @@
 
 /* AI float panel */
 .aiFloat { position: fixed; bottom: 24px; right: 24px; z-index: 100; }
-.aiBtn { padding: 8px 16px; border: none; border-radius: 99px; background: var(--color-text-primary); color: var(--color-bg-primary); font-size: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.aiBtn { padding: 8px 16px; border: none; border-radius: var(--radius-full); background: var(--color-text-primary); color: var(--color-bg-primary); font-size: 12px; cursor: pointer; box-shadow: var(--shadow-elevated); transition: transform var(--duration-medium) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out); }
 .aiBtn:hover { opacity: 0.9; }
-.aiPanel { position: fixed; bottom: 64px; right: 24px; width: 360px; max-height: 400px; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-default); border-radius: var(--radius-lg); box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 101; display: flex; flex-direction: column; }
+.aiPanel { position: fixed; bottom: 64px; right: 24px; width: 360px; max-height: 400px; background: var(--color-bg-primary); border: none; border-radius: var(--radius-lg); box-shadow: var(--shadow-elevated); z-index: 101; display: flex; flex-direction: column; }
 .aiPanelHeader { padding: 10px 14px; font-size: 13px; font-weight: 500; border-bottom: 0.5px solid var(--color-border-default); display: flex; justify-content: space-between; align-items: center; }
 .aiPanelClose { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--color-text-tertiary); }
 .aiPanelBody { flex: 1; overflow-y: auto; padding: 12px 14px; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); min-height: 80px; max-height: 240px; white-space: pre-wrap; }

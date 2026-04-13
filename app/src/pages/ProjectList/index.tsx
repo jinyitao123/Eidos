@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Network } from 'lucide-react'
 import { mcpCall } from '../../api/mcp'
 import { PromptModal, AlertModal, ConfirmModal } from '../../components/Modal'
 import styles from './ProjectList.module.css'
@@ -191,12 +192,7 @@ export function ProjectList() {
                       color: p.status === 'published' ? '#993C1D' : p.status === 'building' ? '#0F6E56' : undefined,
                     }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/>
-                      <circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/>
-                      <line x1="6" y1="7" x2="10" y2="10"/><line x1="18" y1="7" x2="14" y2="10"/>
-                      <line x1="6" y1="17" x2="10" y2="14"/><line x1="18" y1="17" x2="14" y2="14"/>
-                    </svg>
+                    <Network size={20} strokeWidth={1.5} />
                   </div>
                   <div>
                     <div className={styles.cardName}>{p.name}</div>

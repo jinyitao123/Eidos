@@ -1,10 +1,10 @@
 .back { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; margin-bottom: 12px; }
 .header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .title { font-size: 18px; font-weight: 500; }
-.badge { font-size: 11px; padding: 2px 10px; border-radius: 99px; font-weight: 500; background: var(--color-warning-tint); color: var(--color-warning-tone); }
+.badge { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; background: var(--color-warning-tint); color: var(--color-warning-tone); }
 
 .summary { display: flex; gap: 12px; margin-bottom: 20px; }
-.sumCard { flex: 1; padding: 12px; border-radius: var(--radius-md); background: var(--color-bg-secondary); text-align: center; }
+.sumCard { flex: 1; padding: 12px; border-radius: var(--radius-md); background: var(--color-bg-secondary); text-align: center; box-shadow: var(--shadow-card); }
 .sumNum { font-size: 22px; font-weight: 500; }
 .sumLabel { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 
@@ -12,7 +12,7 @@
 .secHeader { font-size: 14px; font-weight: 500; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .secDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-.issue { border: 0.5px solid var(--color-border-default); border-radius: var(--radius-md); padding: 12px; background: var(--color-bg-primary); margin-bottom: 8px; }
+.issue { border: none; border-radius: var(--radius-md); padding: 12px; background: var(--color-bg-primary); margin-bottom: 8px; box-shadow: var(--shadow-card); }
 .issueTop { margin-bottom: 6px; }
 .issueType { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
 .typeConsist { background: var(--color-danger-tint); color: var(--color-danger-tone); }

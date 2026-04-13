@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Network } from 'lucide-react'
 import { fetchOntology, fetchProject } from '../../api/ontology'
 import { mcpCall } from '../../api/mcp'
 import { weavePost } from '../../api/client'
@@ -830,12 +831,7 @@ export function GraphReview() {
               {!loading && error && <div className={styles.placeholder}><p>加载失败: {error}</p></div>}
               {!loading && !error && !ontology && (
                 <div className={styles.placeholder}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3">
-                    <circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/>
-                    <circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/>
-                    <line x1="6" y1="7" x2="10" y2="10"/><line x1="18" y1="7" x2="14" y2="10"/>
-                    <line x1="6" y1="17" x2="10" y2="14"/><line x1="18" y1="17" x2="14" y2="14"/>
-                  </svg>
+                  <Network size={48} strokeWidth={1} opacity={0.3} />
                   <p>暂无本体数据</p>
                   <p className={styles.sub}>请先通过 Agent 构建对话生成本体定义</p>
                 </div>

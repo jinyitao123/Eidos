@@ -338,19 +338,24 @@ export function AgentBuild() {
   }
 
   /**
-   * S2 multi-step orchestration: single bubble with progress list.
-   * Step 1: List classes from S1 entities
-   * Step 2-N: Design attributes for each class
-   * Step N+1: Design relationships
-   * Final: Merge all YAML and save_output
+   * S2 task-split orchestration: 3 rounds instead of 1 big generation.
+   * Round 1: Classes + Relationships (no metrics/telemetry)
+   * Round 2: Read existing structure, add Metrics
+   * Round 3: Read existing structure, add Telemetry
+   *
+   * Each round saves via save_output → Guards validate at each step.
+   * DeepSeek generates ~2000 tokens per round instead of ~8000, cutting time 3-4x.
    */
   async function runS2MultiStep(pid: string) {
-    const stage = STAGES[1] // ontology_structure
+    const stage = STAGES[1]
     const ts = new Date().toISOString()
+    const s2Agent = 'ontology-architect'
+    const s2Idx = 1
 
-    // Create a single message with step progress
     const steps: StepProgress[] = [
-      { label: '读取场景分析', status: 'running' },
+      { label: '类与关系设计', status: 'running' },
+      { label: '指标设计', status: 'pending' },
+      { label: '遥测设计', status: 'pending' },
     ]
     setMessages(prev => [...prev, {
       role: 'agent', agentId: stage.agent, agentName: stage.name,
@@ -370,80 +375,59 @@ export function AgentBuild() {
 
     setSending(true)
     try {
-      // Step 1: Get class list from S2
-      const s2Agent = 'ontology-architect'
-      const s2Idx = 1
-
-      const step1Output = await callAgentStreamSilent(
-        `调用 read_scene_analysis(project_id="${pid}")，然后只列出所有类。输出格式：\nclasses:\n  - id: xxx\n    name: 中文名\n    first_citizen: true/false\n    phase: alpha/beta\n\n不要设计属性，只要类列表。`,
+      // Round 1: Classes + Relationships
+      await callAgentStreamSilent(
+        `请根据场景分析设计本体的 classes 和 relationships。\n` +
+        `要求：\n` +
+        `- 只设计 classes（含完整 attributes）和 relationships\n` +
+        `- 不要添加 metrics 和 telemetry（后续步骤会单独添加）\n` +
+        `- 第一公民类的属性要最丰富（>=15个），包含基础属性、派生属性和状态属性\n` +
+        `- 派生属性的 formula 只能引用同类中已定义的属性\n` +
+        `- 完成后调用 save_output(project_id="${pid}", stage="ontology_structure", content=YAML)`,
         s2Agent, s2Idx
       )
       steps[0].status = 'done'
+      updateSteps(steps, '类与关系设计完成')
 
-      // Parse class names from output
-      const classMatches = [...step1Output.matchAll(/- id:\s*(\S+)/g)]
-      const classIds = classMatches.map(m => m[1]).filter(Boolean)
-      if (classIds.length === 0) {
-        // Fallback: try name matches
-        const nameMatches = [...step1Output.matchAll(/name:\s*(.+)/g)]
-        classIds.push(...nameMatches.map(m => m[1].trim()).slice(0, 10))
-      }
-
-      // Add steps for each class + relationships + save
-      for (const cls of classIds) {
-        steps.push({ label: cls, status: 'pending' })
-      }
-      steps.push({ label: '关系设计', status: 'pending' })
-      steps.push({ label: '保存输出', status: 'pending' })
-      updateSteps(steps, `识别到 ${classIds.length} 个类`)
-
-      // Step 2-N: Design each class attributes
-      const classYamls: string[] = []
-      for (let i = 0; i < classIds.length; i++) {
-        steps[i + 1].status = 'running'
-        updateSteps(steps)
-
-        const classOutput = await callAgentStreamSilent(
-          `设计 ${classIds[i]} 的完整属性列表。输出 YAML 格式：\n- id: xxx\n  name: 中文名\n  type: string/integer/decimal/boolean/date/datetime/enum\n  required: true/false\n  graph_sync: true/false\n  phase: alpha/beta\n\n如果是派生属性加 derived: true 和 formula。只输出属性列表，不要其他内容。`,
-          s2Agent, s2Idx
-        )
-        classYamls.push(classOutput)
-
-        // Count attributes
-        const attrCount = (classOutput.match(/- id:/g) || []).length
-        steps[i + 1].status = 'done'
-        steps[i + 1].detail = `${attrCount} 个属性`
-        updateSteps(steps)
-      }
-
-      // Step N+1: Design relationships
-      const relIdx = classIds.length + 1
-      steps[relIdx].status = 'running'
+      // Round 2: Metrics
+      steps[1].status = 'running'
       updateSteps(steps)
 
-      const relOutput = await callAgentStreamSilent(
-        `设计所有类之间的关系。输出 YAML 格式：\nrelationships:\n  - id: xxx\n    name: 中文名\n    from: class_id\n    to: class_id\n    cardinality: 1:N/N:1/N:M\n    phase: alpha/beta\n\n只输出关系列表。`,
-        s2Agent, s2Idx
-      )
-
-      const relCount = (relOutput.match(/- id:/g) || []).length
-      steps[relIdx].status = 'done'
-      steps[relIdx].detail = `${relCount} 个关系`
-      updateSteps(steps)
-
-      // Final: merge and save
-      const saveIdx = classIds.length + 2
-      steps[saveIdx].status = 'running'
-      updateSteps(steps)
-
-      // Ask S2 to merge everything and save
       await callAgentStreamSilent(
-        `将所有设计合并为完整的本体 YAML 并保存。调用 save_output(project_id="${pid}", stage="ontology_structure", content=合并后的完整YAML)。\n\n合并说明：\n- 类列表：\n${step1Output}\n\n请生成完整的 ontology YAML（包含 ontology.id, ontology.name, classes 含属性, relationships）并保存。`,
+        `请在已有的本体结构上添加 metrics（指标）。\n` +
+        `先调用 read_ontology_structure(project_id="${pid}") 读取当前结构，然后在其基础上添加 metrics 部分。\n\n` +
+        `每个 metric 必须包含：\n` +
+        `- kind: aggregate（聚合）/ composite（复合）/ classification（分类）\n` +
+        `- status: designed / implemented / undefined\n` +
+        `- source_entities: 列表格式如 [class_id1, class_id2]\n` +
+        `- formula: 计算公式\n` +
+        `- description: 业务含义\n\n` +
+        `注意：kind 不能用 gauge/counter/kpi/ratio 等非标准值，status 不能用 active/enabled/live 等非标准值。\n` +
+        `完成后调用 save_output 保存完整的 YAML（包含已有的 classes + relationships + 新增的 metrics）。`,
         s2Agent, s2Idx
       )
+      steps[1].status = 'done'
+      updateSteps(steps, '指标设计完成')
 
-      steps[saveIdx].status = 'done'
-      updateSteps(steps, `本体架构设计完成：${classIds.length} 个类，${relCount} 个关系`)
+      // Round 3: Telemetry
+      steps[2].status = 'running'
+      updateSteps(steps)
+
+      await callAgentStreamSilent(
+        `请在已有的本体结构上添加 telemetry（遥测数据流）。\n` +
+        `先调用 read_ontology_structure(project_id="${pid}") 读取当前结构，然后在其基础上添加 telemetry 部分。\n\n` +
+        `每个 telemetry 必须包含：\n` +
+        `- source_class: 数据来源类（注意：字段名是 source_class 不是 source）\n` +
+        `- value_type: decimal / integer / boolean / string（不能用 float/gauge/percentage 等）\n` +
+        `- sampling: 采样频率如 1s / 10s / 1min（注意：字段名是 sampling 不是 interval）\n` +
+        `- aggregations: 列表格式如 [avg, max, min]（注意：字段名是 aggregations 复数，不是 aggregation）\n` +
+        `- status: designed / implemented / undefined\n` +
+        `- context_strategy: 必须是对象格式，包含 default_window / max_window / default_aggregation / default_granularity\n\n` +
+        `完成后调用 save_output 保存完整的 YAML（包含已有的 classes + relationships + metrics + 新增的 telemetry）。`,
+        s2Agent, s2Idx
+      )
+      steps[2].status = 'done'
+      updateSteps(steps, '本体架构设计完成（类 + 关系 + 指标 + 遥测）')
 
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err)
@@ -451,7 +435,6 @@ export function AgentBuild() {
       const running = steps.find(s => s.status === 'running')
       if (running) running.status = 'error'
       updateSteps(steps, `设计失败: ${errMsg}`)
-      // Also show alert so user sees it
       setAlertState({ message: `本体架构设计失败: ${errMsg}`, type: 'error' })
     } finally {
       setSending(false)
@@ -525,6 +508,21 @@ export function AgentBuild() {
       setSending(true)
       try {
         await callAgentStream(withProjectContext(autoMsg))
+        // After agent completes, check if stage output was saved.
+        // S1 saves via its own tool call (not auto_save), so we verify
+        // by reading the stage output and auto-confirming if it exists.
+        try {
+          const stageOutput = await fetchStageOutput(pid, targetStage.id)
+          if (stageOutput) {
+            setStageConfirmed(prev => {
+              const next = [...prev]
+              next[targetIdx] = true
+              return next
+            })
+          }
+        } catch {
+          // Stage output not found — user needs to retry or confirm manually
+        }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err)
         addAgentMessage(`自动启动失败: ${errMsg}`)

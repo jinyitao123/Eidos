@@ -11,13 +11,13 @@
 .radioGroup { display: flex; flex-direction: column; gap: 8px; }
 .radioLabel {
   display: flex; align-items: flex-start; gap: 8px;
-  padding: 12px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--color-border);
-  transition: border-color 0.15s, background 0.15s;
+  padding: 12px; border-radius: var(--radius-md); cursor: pointer;
+  border: none; box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration-medium) var(--ease-out), transform var(--duration-medium) var(--ease-out), background var(--duration-medium) var(--ease-out);
 }
-.radioLabel:hover { border-color: var(--color-border-hover); }
+.radioLabel:hover { box-shadow: var(--shadow-elevated); transform: translateY(-1px); }
 .radioLabelSelected {
-  border-color: #993c1d; background: rgba(153, 60, 29, 0.04);
+  box-shadow: 0 0 0 2px #993c1d, var(--shadow-card); background: rgba(153, 60, 29, 0.04);
 }
 .radioInput { margin-top: 2px; accent-color: #993c1d; }
 .radioText { flex: 1; }
@@ -33,18 +33,18 @@
 .fieldRow { display: flex; align-items: center; gap: 8px; }
 .input {
   width: 140px; padding: 6px 10px; font-size: 13px;
-  border: 1px solid var(--color-border); border-radius: 6px;
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);
   background: var(--color-bg-primary); color: var(--color-text-primary);
-  outline: none;
+  outline: none; transition: border-color var(--duration-medium) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out);
 }
-.input:focus { border-color: #993c1d; }
+.input:focus { border-color: #993c1d; box-shadow: 0 0 0 3px rgba(153, 60, 29, 0.12); }
 .unit { font-size: 12px; color: var(--color-text-tertiary); }
 
 .actions { display: flex; gap: 8px; margin-top: 24px; }
 .btnPrimary {
   padding: 8px 20px; font-size: 13px; font-weight: 500;
-  background: #993c1d; color: #fff; border: none; border-radius: 6px;
-  cursor: pointer; transition: opacity 0.15s;
+  background: #993c1d; color: #fff; border: none; border-radius: var(--radius-sm);
+  cursor: pointer; transition: opacity var(--duration-medium) var(--ease-out);
 }
 .btnPrimary:hover { opacity: 0.9; }
 .btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }

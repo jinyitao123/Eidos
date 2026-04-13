@@ -80,13 +80,13 @@ func registerGetProject(router *mcp.Router, d *Deps) {
 		}
 		json.Unmarshal(args, &p)
 
-		var id, name, desc, status, stage, version, publishedAt, createdAt, updatedAt string
+		var id, name, desc, status, stage, version, publishedAt, createdAt, updatedAt, yamlContent string
 		err := d.PG.QueryRow(ctx,
 			`SELECT id::text, name, description, status, current_stage,
 				COALESCE(published_version, ''), COALESCE(published_at::text, ''),
-				created_at::text, updated_at::text
+				created_at::text, updated_at::text, COALESCE(yaml_content, '')
 			FROM ontology.projects WHERE id::text = $1`, p.ProjectID).
-			Scan(&id, &name, &desc, &status, &stage, &version, &publishedAt, &createdAt, &updatedAt)
+			Scan(&id, &name, &desc, &status, &stage, &version, &publishedAt, &createdAt, &updatedAt, &yamlContent)
 		if err != nil {
 			return mcp.ErrorResult("project not found: " + err.Error())
 		}
@@ -99,6 +99,9 @@ func registerGetProject(router *mcp.Router, d *Deps) {
 			"current_stage": stage,
 			"created_at":   createdAt,
 			"updated_at":   updatedAt,
+		}
+		if yamlContent != "" {
+			proj["yaml_content"] = yamlContent
 		}
 		if version != "" {
 			proj["published_version"] = version

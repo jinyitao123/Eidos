@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"ontologyserver/internal/mcp"
+	ontoyaml "ontologyserver/internal/yaml"
 
 	"gopkg.in/yaml.v3"
 )
@@ -132,6 +133,15 @@ func extractFlat(raw string) map[string]any {
 	return flat
 }
 
+// indentText adds a prefix to each line of text.
+func indentText(text, prefix string) string {
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		lines[i] = prefix + l
+	}
+	return strings.Join(lines, "\n")
+}
+
 // extractYAML tries to extract a YAML code block from Markdown-wrapped content.
 // If the content contains ```yaml ... ```, returns the inner YAML.
 // Otherwise returns the original content unchanged.
@@ -156,6 +166,47 @@ func extractYAML(content string) string {
 	return content
 }
 
+// autoFixRulesTrigger normalizes rule triggers from string to object.
+// S3 (DeepSeek) consistently writes trigger: "on_change" instead of
+// trigger: {type: "on_change"}. This breaks the pipeline.
+// We fix it automatically rather than blocking, because blocking causes
+// S3 to loop retrying with the same mistake.
+func autoFixRulesTrigger(content string) string {
+	var doc map[string]any
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return content
+	}
+
+	rules, ok := doc["rules"].([]any)
+	if !ok {
+		return content
+	}
+
+	changed := false
+	for _, r := range rules {
+		rule, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		trigger := rule["trigger"]
+		if trigStr, ok := trigger.(string); ok {
+			// Convert string trigger to object: "on_change" → {type: "on_change"}
+			rule["trigger"] = map[string]any{"type": trigStr}
+			changed = true
+		}
+	}
+
+	if !changed {
+		return content
+	}
+
+	out, err := yaml.Marshal(doc)
+	if err != nil {
+		return content
+	}
+	return string(out)
+}
+
 func registerSaveOutput(router *mcp.Router, d *Deps) {
 	router.Register(mcp.ToolDef{
 		Name:        "save_output",
@@ -178,15 +229,56 @@ func registerSaveOutput(router *mcp.Router, d *Deps) {
 		// Try to extract YAML from fenced code block if present
 		p.Content = extractYAML(p.Content)
 
-		// Validate that content is valid YAML
+		// Validate that content is valid YAML.
+		// scene_analysis stage allows free-form text (S1 often outputs Markdown).
+		// Other stages require strict YAML.
 		var check any
 		if err := yaml.Unmarshal([]byte(p.Content), &check); err != nil {
-			return mcp.ErrorResult("content is not valid YAML: " + err.Error())
+			if p.Stage == "scene_analysis" {
+				// scene_analysis: accept free-form text. Wrap it so downstream
+				// readers (S2) get a parseable structure with the raw content.
+				p.Content = "scene_name: unknown\nraw_content: |\n" + indentText(p.Content, "  ")
+			} else {
+				return mcp.ErrorResult("content is not valid YAML: " + err.Error() +
+					" — 请确保输出是纯 YAML 格式，不要使用 Markdown（# 标题、** 加粗等）")
+			}
 		}
 
 		// Reject empty project_id early (auto_save may pass "" if profile missing)
 		if p.ProjectID == "" {
 			return mcp.ErrorResult("project_id is empty — 请确认会话的 profile 中包含 project_id")
+		}
+
+		// Run integrity guards on ontology_structure stage.
+		// Guards are hard constraints that BLOCK saving and return actionable
+		// error messages to guide Agent self-correction.
+		if p.Stage == "ontology_structure" {
+			if o, err := ontoyaml.Parse([]byte(p.Content)); err == nil {
+				if gr := RunOntologyGuardsWithRaw(o, p.Content); gr.Blocked {
+					return mcp.ErrorResult("integrity guard blocked save: " + gr.Message)
+				}
+				// Cross-stage validation: check classes against scene_analysis
+				if p.ProjectID != "" {
+					var sceneContent string
+					_ = d.PG.QueryRow(ctx,
+						`SELECT content FROM ontology.stage_outputs
+						 WHERE project_id = $1 AND stage = 'scene_analysis'
+						 ORDER BY created_at DESC LIMIT 1`, p.ProjectID).Scan(&sceneContent)
+					if sceneContent != "" {
+						if gr := guardClassesInScene(o, sceneContent); gr.Blocked {
+							return mcp.ErrorResult("integrity guard blocked save: " + gr.Message)
+						}
+					}
+				}
+			}
+		}
+
+		// Auto-fix rules_actions: S3 (DeepSeek) consistently writes trigger as
+		// a plain string ("on_change") instead of an object ({type: "on_change"}).
+		// This breaks the pipeline's rule engine config generator.
+		// Fix it on save rather than blocking (blocking would cause S3 to loop).
+		if p.Stage == "rules_actions" {
+			p.Content = autoFixRulesTrigger(p.Content)
 		}
 
 		// Check project exists before INSERT (clearer error than FK violation)

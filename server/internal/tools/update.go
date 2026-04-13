@@ -42,6 +42,12 @@ func registerUpdateOntologyYAML(router *mcp.Router, d *Deps) {
 		if err != nil {
 			return mcp.ErrorResult("invalid YAML syntax: " + err.Error())
 		}
+
+		// Run integrity guards — hard constraints that block saving.
+		if gr := RunOntologyGuardsWithRaw(o, p.YAMLContent); gr.Blocked {
+			return mcp.ErrorResult("integrity guard blocked save: " + gr.Message)
+		}
+
 		// Run semantic validation to collect warnings returned to the caller.
 		// Warnings do not block saving — users may be mid-edit.
 		validationResult := ontoyaml.Validate(o, "full")

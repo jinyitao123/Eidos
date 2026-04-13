@@ -15,14 +15,14 @@
 }
 
 .modal {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-bg-primary, #fff);
+  border-radius: var(--radius-lg);
   width: 420px;
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-elevated);
   animation: slideUp 0.2s ease;
 }
 
@@ -104,26 +104,26 @@
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #d6d3cf;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-medium) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out);
   box-sizing: border-box;
 }
 .input:focus {
   border-color: #993c1d;
-  box-shadow: 0 0 0 2px rgba(153, 60, 29, 0.12);
+  box-shadow: 0 0 0 3px rgba(153, 60, 29, 0.12);
 }
 
 .btnCancel {
   padding: 8px 18px;
   border: 1px solid #d6d3cf;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: #fff;
   font-size: 14px;
   color: #3d3a35;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-medium) var(--ease-out), border-color var(--duration-medium) var(--ease-out);
 }
 .btnCancel:hover {
   background: #f5f3f0;
@@ -132,13 +132,13 @@
 .btnConfirm {
   padding: 8px 18px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: #993c1d;
   font-size: 14px;
   color: #fff;
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.15s;
+  transition: background var(--duration-medium) var(--ease-out);
 }
 .btnConfirm:hover {
   background: #7d3118;

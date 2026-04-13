@@ -144,8 +144,9 @@
   position: fixed; bottom: 24px; right: 24px;
   padding: 6px 14px; font-size: 12px; font-weight: 500;
   color: #fff; background: var(--color-text-primary);
-  border: none; border-radius: 999px; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10;
+  border: none; border-radius: var(--radius-full); cursor: pointer;
+  box-shadow: var(--shadow-elevated); z-index: 10;
+  transition: transform var(--duration-medium) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out);
 }
 .aiFloatBtn:hover { transform: scale(1.05); }
 

@@ -14,14 +14,16 @@
   font-size: 13px;
   padding: 8px 16px;
   border: 0.5px solid var(--color-border-hover);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-primary);
   cursor: pointer;
+  transition: background var(--duration-medium) var(--ease-out), border-color var(--duration-medium) var(--ease-out);
 }
 
 .addBtn:hover {
   background: var(--color-bg-secondary);
+  border-color: var(--color-text-tertiary);
 }
 
 .empty { font-size: 13px; color: var(--color-text-tertiary); padding: 40px 0; text-align: center; }
@@ -34,20 +36,30 @@
 
 .card {
   position: relative;
-  border: 0.5px solid var(--color-border-default);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   background: var(--color-bg-primary);
   cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration-medium) var(--ease-out), transform var(--duration-medium) var(--ease-out);
 }
 
 .card:hover {
-  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
 }
 
 .cardDashed {
-  border-style: dashed;
+  box-shadow: none;
+  border: 1px dashed var(--color-border-hover);
   opacity: 0.6;
+  background: var(--color-bg-secondary);
+}
+.cardDashed:hover {
+  box-shadow: none;
+  transform: none;
+  border-color: var(--color-text-tertiary);
 }
 
 .cardTop {
@@ -87,8 +99,8 @@
 
 .badge {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 99px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   font-size: 11px;
   font-weight: 500;
 }
@@ -129,8 +141,8 @@
 }
 
 .tag {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   font-size: 11px;
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
@@ -201,4 +213,8 @@
   border-top: 0.5px solid var(--color-border-default);
   font-size: 11px;
   color: var(--color-text-tertiary);
+}
+
+.cardDelete {
+  transition: background var(--duration-medium) var(--ease-out), color var(--duration-medium) var(--ease-out);
 }
