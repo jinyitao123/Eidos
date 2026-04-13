@@ -500,7 +500,7 @@ export function AgentBuild() {
       return
     } else {
       const autoPrompts: Record<string, string> = {
-        scene_analysis: `开始场景分析。`,
+        scene_analysis: `请调用 list_documents(project_id="${pid}") 获取文档列表，然后用 read_document 读取文档全文，再按六步框架分析并保存。`,
         rules_actions: `调用 read_scene_analysis(project_id="${pid}") 和 read_ontology_structure(project_id="${pid}")，然后设计规则和动作。完成后 save_output(project_id="${pid}", stage="rules_actions", content=YAML)。`,
         review_report: `调用 read_full_ontology_yaml(project_id="${pid}")，审核本体并生成报告。完成后 save_output(project_id="${pid}", stage="review_report", content=YAML)。`,
       }

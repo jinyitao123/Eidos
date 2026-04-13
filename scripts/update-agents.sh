@@ -35,12 +35,13 @@ curl -sf "$WEAVE_URL/v1/agents/scene-analyst" -X PUT \
   "mcp_servers": [
     {
       "url": "http://ontology-mcp:9091",
-      "filter": ["read_document", "query_published_ontologies", "validate_yaml", "save_output"]
+      "filter": ["list_documents", "read_document", "query_published_ontologies", "validate_yaml", "save_output"]
     }
   ],
   "max_tokens": 16000,
   "max_output_tokens": 8192,
-  "step_budget": 20
+  "step_budget": 20,
+  "graph_type": "ontology-builder"
 }
 AGENT_JSON
 )" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  -> Updated: {d.get(\"name\",\"error\")}')"
@@ -68,7 +69,8 @@ curl -sf "$WEAVE_URL/v1/agents/ontology-architect" -X PUT \
   ],
   "max_tokens": 32000,
   "max_output_tokens": 8192,
-  "step_budget": 20
+  "step_budget": 20,
+  "graph_type": "ontology-builder"
 }
 AGENT_JSON
 )" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  -> Updated: {d.get(\"name\",\"error\")}')"
@@ -96,7 +98,8 @@ curl -sf "$WEAVE_URL/v1/agents/rule-designer" -X PUT \
   ],
   "max_tokens": 32000,
   "max_output_tokens": 8192,
-  "step_budget": 20
+  "step_budget": 20,
+  "graph_type": "ontology-builder"
 }
 AGENT_JSON
 )" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  -> Updated: {d.get(\"name\",\"error\")}')"
@@ -124,7 +127,8 @@ curl -sf "$WEAVE_URL/v1/agents/ontology-reviewer" -X PUT \
   ],
   "max_tokens": 32000,
   "max_output_tokens": 8192,
-  "step_budget": 30
+  "step_budget": 30,
+  "graph_type": "ontology-builder"
 }
 AGENT_JSON
 )" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  -> Updated: {d.get(\"name\",\"error\")}')"
