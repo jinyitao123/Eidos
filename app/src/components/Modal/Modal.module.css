@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.6);
   animation: fadeIn 0.15s ease;
 }
 
@@ -15,14 +15,15 @@
 }
 
 .modal {
-  background: var(--color-bg-primary, #fff);
+  background: #2a2825;
+  border: 1px solid #3d3a35;
   border-radius: var(--radius-lg);
   width: 420px;
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-elevated);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   animation: slideUp 0.2s ease;
 }
 
@@ -36,13 +37,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px 12px;
-  border-bottom: 1px solid #f0eeeb;
+  border-bottom: 1px solid #3d3a35;
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #1d1b16;
+  color: #e8e5e0;
 }
 
 .close {
@@ -57,8 +58,8 @@
   transition: background 0.15s;
 }
 .close:hover {
-  background: #f0eeeb;
-  color: #1d1b16;
+  background: #3d3a35;
+  color: #e8e5e0;
 }
 
 .body {
@@ -73,67 +74,73 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 12px 24px 20px;
-  border-top: 1px solid #f0eeeb;
+  border-top: 1px solid #3d3a35;
 }
 
 .message {
   font-size: 14px;
-  color: #3d3a35;
+  color: #c5c2bc;
   line-height: 1.6;
   margin: 0;
   white-space: pre-wrap;
 }
 
 .msgError {
-  color: #b3261e;
+  color: #f2b8b5;
 }
 
 .msgSuccess {
-  color: #0f6e56;
+  color: #7dd3b8;
 }
 
 .label {
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: #6b6560;
+  color: #9b9790;
   margin-bottom: 6px;
 }
 
 .input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d6d3cf;
+  border: 1px solid #4d4a45;
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
+  background: #1d1b16;
+  color: #e8e5e0;
   transition: border-color var(--duration-medium) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out);
   box-sizing: border-box;
 }
+.input::placeholder {
+  color: #6b6560;
+}
 .input:focus {
-  border-color: #993c1d;
-  box-shadow: 0 0 0 3px rgba(153, 60, 29, 0.12);
+  border-color: #d85a30;
+  box-shadow: 0 0 0 3px rgba(216, 90, 48, 0.15);
 }
 
 .btnCancel {
   padding: 8px 18px;
-  border: 1px solid #d6d3cf;
+  border: 1px solid #4d4a45;
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: #2a2825;
   font-size: 14px;
-  color: #3d3a35;
+  color: #c5c2bc;
   cursor: pointer;
   transition: background var(--duration-medium) var(--ease-out), border-color var(--duration-medium) var(--ease-out);
 }
 .btnCancel:hover {
-  background: #f5f3f0;
+  background: #3d3a35;
+  border-color: #5d5a55;
 }
 
 .btnConfirm {
   padding: 8px 18px;
   border: none;
   border-radius: var(--radius-sm);
-  background: #993c1d;
+  background: #d85a30;
   font-size: 14px;
   color: #fff;
   cursor: pointer;
@@ -141,7 +148,7 @@
   transition: background var(--duration-medium) var(--ease-out);
 }
 .btnConfirm:hover {
-  background: #7d3118;
+  background: #c04e28;
 }
 
 .btnDanger {
