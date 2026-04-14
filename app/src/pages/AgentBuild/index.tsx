@@ -450,6 +450,20 @@ export function AgentBuild() {
       steps[2].status = 'done'
       updateSteps(steps, '本体架构设计完成（类 + 关系 + 指标 + 遥测）')
 
+      // Auto-confirm S2 stage if output was saved
+      if (pid) {
+        try {
+          const stageOutput = await fetchStageOutput(pid, 'ontology_structure')
+          if (stageOutput) {
+            setStageConfirmed(prev => {
+              const next = [...prev]
+              next[1] = true
+              return next
+            })
+          }
+        } catch { /* ignore */ }
+      }
+
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error('runS2MultiStep error:', err)
