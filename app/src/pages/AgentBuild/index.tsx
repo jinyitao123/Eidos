@@ -220,6 +220,11 @@ export function AgentBuild() {
     const rawOutput = (done.output as string) || accumulated || '(无响应)'
     const finalOutput = cleanAgentOutput(rawOutput)
 
+    // Mark any still-running tool calls as done (SSE may not send all tool_result events)
+    for (const t of tools) {
+      if (t.status === 'running') t.status = 'done'
+    }
+
     // Add fullContent + stageId so preview/download buttons work on new messages too
     setMessages(prev => {
       const updated = [...prev]
@@ -235,6 +240,22 @@ export function AgentBuild() {
       }
       return updated
     })
+
+    // Auto-confirm stage if output was saved (check DB)
+    if (projectId) {
+      try {
+        const stageOutput = await fetchStageOutput(projectId, STAGES[currentStage].id)
+        if (stageOutput) {
+          setStageConfirmed(prev => {
+            const next = [...prev]
+            next[currentStage] = true
+            return next
+          })
+        }
+      } catch {
+        // Stage output not found — user can manually confirm
+      }
+    }
 
     return finalOutput
   }
