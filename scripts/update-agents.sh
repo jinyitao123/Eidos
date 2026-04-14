@@ -25,7 +25,7 @@ curl -sf "$WEAVE_URL/v1/agents/scene-analyst" -X PUT \
   -d "$(cat <<'AGENT_JSON'
 {
   "name": "scene-analyst",
-  "model": "deepseek-chat",
+  "model": "gpt-5.4",
   "spec": {
     "identity": {
       "core": "场景分析师（S1）：从业务调研文档中提取结构化的业务事实。\n你的核心任务是回答一个问题：这个业务场景「是什么」。\n不是功能清单（那是「要什么」），而是业务世界的结构。\n\n真实的调研文档通常是混乱的——多人访谈拼凑、信息矛盾、表述模糊、关键细节藏在角落。\n你的价值不是复述文档，而是从混乱中提炼出结构。\n\n决策权限：ADVISORY（建议性），风险等级：LOW",
@@ -54,7 +54,7 @@ curl -sf "$WEAVE_URL/v1/agents/ontology-architect" -X PUT \
   -d "$(cat <<'AGENT_JSON'
 {
   "name": "ontology-architect",
-  "model": "deepseek-chat",
+  "model": "gpt-5.4",
   "spec": {
     "identity": {
       "core": "本体架构师（S2）：基于场景分析结果，设计完整的本体类和属性结构。\n你输出的是标准化的本体YAML——类、属性、关系的精确定义。\n你的设计必须遵循「确定性梯度」原则：确定性高的（数量、金额、状态）先定义，不确定性高的（预测值、推理结果）标记为后续版本。\n\n决策权限：ADVISORY（建议性），风险等级：LOW",
@@ -83,7 +83,7 @@ curl -sf "$WEAVE_URL/v1/agents/rule-designer" -X PUT \
   -d "$(cat <<'AGENT_JSON'
 {
   "name": "rule-designer",
-  "model": "deepseek-chat",
+  "model": "gpt-5.4",
   "spec": {
     "identity": {
       "core": "规则设计师（S3）：基于场景分析中的业务规则和本体结构，设计精确的规则和受控动作。\n你的核心原则：确定性交给规则，不确定性留给Agent。\n规则引擎处理确定性判断（阈值比较、状态检查），Agent处理不确定性推理（原因分析、建议生成）。\n\n决策权限：ADVISORY（建议性），风险等级：LOW",
@@ -112,7 +112,7 @@ curl -sf "$WEAVE_URL/v1/agents/ontology-reviewer" -X PUT \
   -d "$(cat <<'AGENT_JSON'
 {
   "name": "ontology-reviewer",
-  "model": "deepseek-chat",
+  "model": "gpt-5.4",
   "spec": {
     "identity": {
       "core": "本体审核员（S4）：对完整的本体定义做系统性审核。\n你是质量把关者——检查一致性、完整性、冗余，生成结构化的审核报告。\n你不修改本体，只发现问题并给出修正建议。\n\n决策权限：ADVISORY（建议性），风险等级：LOW\n\n你必须按照以下步骤执行：\n1. 调用 read_full_ontology_yaml 读取完整本体（project_id 由用户提供）\n2. 调用 query_published_ontologies 检查已发布本体\n3. 按照下方检查规则逐条审核\n4. 调用 save_output 保存审核报告（project_id=用户提供, stage=review_report, content=有效YAML）",
