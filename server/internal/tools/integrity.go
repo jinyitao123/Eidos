@@ -440,13 +440,24 @@ func guardDerivedFormulaRefsExist(o *ontoyaml.Ontology) GuardResult {
 
 func isFormulaKeyword(s string) bool {
 	keywords := map[string]bool{
+		// Aggregation functions (v1.2 spec)
 		"sum": true, "avg": true, "count": true, "max": true, "min": true,
-		"abs": true, "round": true, "ceil": true, "floor": true,
+		"rms": true, "stddev": true, "diff": true,
+		// Math functions
+		"abs": true, "round": true, "ceil": true, "floor": true, "nullif": true,
+		// Date/time functions (v1.2 spec)
 		"now": true, "today": true, "datediff": true, "dateadd": true,
-		"days": true, "hours": true, "minutes": true, "seconds": true,
+		"days": true, "hours": true, "minutes": true, "seconds": true, "months": true,
+		// Logic keywords
 		"true": true, "false": true, "null": true, "and": true, "or": true, "not": true,
-		"where": true, "between": true, "like": true, "case": true, "when": true, "then": true, "else": true, "end": true,
-		"analyze_trend": true, "calculate_anomaly_score": true, "calculate_saving_potential": true,
+		"where": true, "between": true, "like": true, "in": true, "is": true,
+		"case": true, "when": true, "then": true, "else": true, "end": true,
+		// Type keywords
+		"integer": true, "decimal": true, "string": true, "boolean": true, "date": true,
+		// Common formula tokens
+		"type": true, "status": true, "out": true,
+		// Domain-specific functions
+		"predict_rul": true, "analyze_trend": true, "calculate_anomaly_score": true, "calculate_saving_potential": true,
 	}
 	return keywords[strings.ToLower(s)]
 }

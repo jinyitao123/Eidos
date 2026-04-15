@@ -27,13 +27,20 @@ type OntologyDoc struct {
 
 // Class represents a data entity in the ontology.
 type Class struct {
-	ID           string      `yaml:"id" json:"id"`
-	Name         string      `yaml:"name" json:"name"`
-	Description  string      `yaml:"description,omitempty" json:"description,omitempty"`
-	FirstCitizen bool        `yaml:"first_citizen,omitempty" json:"first_citizen,omitempty"`
-	Phase        string      `yaml:"phase" json:"phase"`
-	ImportedFrom string      `yaml:"imported_from,omitempty" json:"imported_from,omitempty"`
-	Attributes   []Attribute `yaml:"attributes" json:"attributes"`
+	ID               string             `yaml:"id" json:"id"`
+	Name             string             `yaml:"name" json:"name"`
+	Description      string             `yaml:"description,omitempty" json:"description,omitempty"`
+	FirstCitizen     bool               `yaml:"first_citizen,omitempty" json:"first_citizen,omitempty"`
+	Phase            string             `yaml:"phase" json:"phase"`
+	ImportedFrom     string             `yaml:"imported_from,omitempty" json:"imported_from,omitempty"`
+	Extends          string             `yaml:"extends,omitempty" json:"extends,omitempty"`                        // v1.2
+	UniqueConstraints []UniqueConstraint `yaml:"unique_constraints,omitempty" json:"unique_constraints,omitempty"` // v1.2
+	Attributes       []Attribute        `yaml:"attributes" json:"attributes"`
+}
+
+// UniqueConstraint defines a composite unique key on a class.
+type UniqueConstraint struct {
+	Columns []string `yaml:"columns" json:"columns"`
 }
 
 // Attribute represents a single field within a class.
@@ -53,6 +60,8 @@ type Attribute struct {
 	ValueRange   string   `yaml:"value_range,omitempty" json:"value_range,omitempty"`
 	Phase        string   `yaml:"phase,omitempty" json:"phase,omitempty"`
 	Description  string   `yaml:"description,omitempty" json:"description,omitempty"`
+	IsMetric     bool     `yaml:"is_metric,omitempty" json:"is_metric,omitempty"`   // v1.2
+	Exposed      bool     `yaml:"exposed,omitempty" json:"exposed,omitempty"`       // v1.2
 }
 
 // Relationship connects two classes.
@@ -230,6 +239,7 @@ type Action struct {
 	TriggersAfter  []string         `yaml:"triggers_after,omitempty" json:"triggers_after,omitempty"`
 	Permission     ActionPermission `yaml:"permission,omitempty" json:"permission,omitempty"`
 	DecisionLog    bool             `yaml:"decision_log,omitempty" json:"decision_log,omitempty"`
+	Exposed        bool             `yaml:"exposed,omitempty" json:"exposed,omitempty"` // v1.2
 }
 
 type ActionParam struct {
@@ -247,6 +257,7 @@ type ActionWrite struct {
 }
 
 type ActionPermission struct {
+	Mode   string   `yaml:"mode,omitempty" json:"mode,omitempty"` // v1.2: FULL_AUTO / AUTO_WITH_CONFIRM / ADVISORY
 	Roles  []string `yaml:"roles,omitempty" json:"roles,omitempty"`
 	Agents []string `yaml:"agents,omitempty" json:"agents,omitempty"`
 }
@@ -260,6 +271,7 @@ type Function struct {
 	Phase       string           `yaml:"phase,omitempty" json:"phase,omitempty"`
 	Inputs      []FunctionInput  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
 	Output      FunctionOutput   `yaml:"output" json:"output"`
+	Exposed     bool             `yaml:"exposed,omitempty" json:"exposed,omitempty"` // v1.2
 }
 
 type FunctionInput struct {

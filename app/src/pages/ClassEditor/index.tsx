@@ -302,7 +302,11 @@ export function ClassEditor() {
             {cls.first_citizen ? '★ 第一公民' : '☆ 设为第一公民'}
           </span>
         </div>
-        {cls.imported_from && <span className={styles.importBadge}>导入自 {cls.imported_from}</span>}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: cls.imported_from || cls.extends || cls.phase ? 4 : 0 }}>
+          {cls.imported_from && <span className={styles.importBadge}>导入自 {cls.imported_from}</span>}
+          {cls.extends && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#1a1a3e', color: '#a0a0e0' }}>继承 {cls.extends}</span>}
+          {cls.phase && cls.phase !== 'alpha' && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: cls.phase === 'beta' ? '#2e2410' : '#2a2825', color: cls.phase === 'beta' ? '#D97706' : '#6b6560' }}>{cls.phase}</span>}
+        </div>
       </div>
 
       <div className={styles.tabs}>
@@ -334,6 +338,7 @@ export function ClassEditor() {
                 <th>类型</th>
                 <th>必填</th>
                 <th>派生/默认</th>
+                <th>标记</th>
                 <th></th>
               </tr>
             </thead>
@@ -418,6 +423,13 @@ export function ClassEditor() {
                         {attr.configurable && <span className={styles.configTag}>客户可调</span>}
                       </div>
                     )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                      {attr.is_metric && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#0a2e1a', color: '#7dd3b8' }}>指标</span>}
+                      {attr.exposed && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#1a1a3e', color: '#a0a0e0' }}>开放</span>}
+                      {attr.graph_sync && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#2e2410', color: '#D4A84A' }}>图谱</span>}
+                    </div>
                   </td>
                   <td>
                     <button className={styles.deleteAttrBtn} onClick={() => handleDeleteAttr(attr.id)} title="删除">×</button>

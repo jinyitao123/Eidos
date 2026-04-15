@@ -796,11 +796,15 @@ export function GraphReview() {
                       style={{ cursor: 'pointer' }}
                     >
                       <span className={styles.statusDot} style={{
-                        background: m.status === 'implemented' ? '#2D6A2D'
-                          : m.status === 'designed' ? '#8B5E0A' : '#A09A94'
+                        background: m.status === 'implemented' ? '#0F6E56'
+                          : m.status === 'designed' ? '#D97706' : '#6b6560'
                       }} />
                       <span style={{ flex: 1 }}>{m.name}</span>
-                      <span className={styles.classCount}>{(m.kind || '')[0]?.toUpperCase()}</span>
+                      <span style={{
+                        fontSize: 9, padding: '1px 4px', borderRadius: 3, fontWeight: 600,
+                        background: m.kind === 'aggregate' ? '#0a2e1a' : m.kind === 'composite' ? '#1a1a3e' : m.kind === 'classification' ? '#2e1a0a' : '#2a2825',
+                        color: m.kind === 'aggregate' ? '#7dd3b8' : m.kind === 'composite' ? '#a0a0e0' : m.kind === 'classification' ? '#e0a060' : '#6b6560',
+                      }}>{m.kind === 'aggregate' ? '聚合' : m.kind === 'composite' ? '复合' : m.kind === 'classification' ? '分类' : (m.kind || '?')[0]}</span>
                     </div>
                   ))}
                 </>
@@ -812,10 +816,11 @@ export function GraphReview() {
                   {ontology?.telemetry?.map(t => (
                     <div key={t.id} className={styles.classItem}>
                       <span className={styles.statusDot} style={{
-                        background: t.status === 'implemented' ? '#2D6A2D'
-                          : t.status === 'designed' ? '#8B5E0A' : '#A09A94'
+                        background: t.status === 'implemented' ? '#0F6E56'
+                          : t.status === 'designed' ? '#D97706' : '#6b6560'
                       }} />
                       <span style={{ flex: 1 }}>{t.name}</span>
+                      <span style={{ fontSize: 9, color: '#6b6560' }}>{t.sampling || ''}{t.unit ? ` ${t.unit}` : ''}</span>
                     </div>
                   ))}
                 </>
@@ -917,6 +922,17 @@ export function GraphReview() {
                             {metricCount > 0 ? `M${metricCount}` : ''}{metricCount > 0 && telemetryCount > 0 ? ' ' : ''}{telemetryCount > 0 ? `T${telemetryCount}` : ''}
                           </text>
                         )}
+                        {/* Phase badge */}
+                        {cls.phase && cls.phase !== 'alpha' && (
+                          <g>
+                            <rect x={p.x + r - 8} y={p.y - r - 2} width={20} height={12} rx={3} fill={cls.phase === 'beta' ? '#D97706' : '#6b6560'} />
+                            <text x={p.x + r + 2} y={p.y - r + 7} textAnchor="middle" fontSize="7" fontWeight="600" fill="#fff">{cls.phase === 'beta' ? 'β' : 'F'}</text>
+                          </g>
+                        )}
+                        {/* Extends indicator */}
+                        {cls.extends && (
+                          <text x={p.x - r + 4} y={p.y - r + 8} fontSize="8" fill="#534AB7" title={`extends: ${cls.extends}`}>⬡</text>
+                        )}
                       </g>
                     )
                   })}
@@ -944,6 +960,7 @@ export function GraphReview() {
                 <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#EEEDFE', border: '1px solid #534AB7' }} />事件类</span>
                 <span className={styles.legendItem}><span style={{ display: 'inline-block', width: 12, height: 2, background: '#1A56A0', borderRadius: 1 }} />指标</span>
                 <span className={styles.legendItem}><span style={{ display: 'inline-block', width: 12, height: 2, background: '#8B5E0A', borderRadius: 1 }} />遥测</span>
+                <span className={styles.legendItem}><span style={{ display: 'inline-block', width: 12, height: 10, background: '#D97706', borderRadius: 2, fontSize: 7, color: '#fff', textAlign: 'center', lineHeight: '10px' }}>β</span>beta</span>
               </div>
             </div>
           </div>

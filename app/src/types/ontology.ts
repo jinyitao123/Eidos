@@ -16,6 +16,10 @@ export interface OntologyAttribute {
   value_range?: string
   description?: string
   phase?: string
+  /** v1.2: marks attribute as metric-type calculation property */
+  is_metric?: boolean
+  /** v1.2: marks attribute as discoverable by external agents */
+  exposed?: boolean
 }
 
 export interface OntologyClass {
@@ -25,6 +29,10 @@ export interface OntologyClass {
   phase?: string
   description?: string
   imported_from?: string
+  /** v1.2: inherit from interface or parent class */
+  extends?: string
+  /** v1.2: composite unique key definitions */
+  unique_constraints?: { columns: string[] }[]
   attributes?: OntologyAttribute[]
 }
 
@@ -91,13 +99,21 @@ export interface ActionWrite {
 export interface OntologyAction {
   id: string
   name: string
+  description?: string
   phase?: string
   params?: RuleParam[]
   writes?: ActionWrite[]
   triggers_before?: string[]
   triggers_after?: string[]
-  permission?: { roles?: string[]; agents?: string[] }
+  permission?: {
+    /** v1.2: decision authority level */
+    mode?: 'FULL_AUTO' | 'AUTO_WITH_CONFIRM' | 'ADVISORY'
+    roles?: string[]
+    agents?: string[]
+  }
   decision_log?: boolean
+  /** v1.2: marks action as external collaboration capability */
+  exposed?: boolean
 }
 
 // --- Metrics ---
@@ -206,6 +222,42 @@ export interface OntologyFunction {
   phase?: string
   inputs?: FunctionInput[]
   output: FunctionOutput
+  /** v1.2: marks function as callable cross-ontology */
+  exposed?: boolean
+}
+
+// --- Interfaces (v1.2) ---
+
+export interface InterfaceAttribute {
+  id: string
+  name: string
+  type: string
+}
+
+export interface OntologyInterface {
+  id: string
+  name: string
+  description?: string
+  phase?: string
+  attributes?: InterfaceAttribute[]
+  actions?: { action_id: string }[]
+  implemented_by?: string[]
+}
+
+// --- Security (v1.2) ---
+
+export interface OntologySecurity {
+  object_level?: { class: string; rule: string; description?: string }[]
+  attribute_level?: { class: string; attribute: string; visible_to: string[]; description?: string }[]
+  action_level?: { action: string; executable_by: { roles?: string[]; agents?: string[] } }[]
+}
+
+// --- Business Qualifiers (v1.2) ---
+
+export interface BusinessQualifier {
+  id: string
+  name: string
+  filter: { entity: string; expression: string }
 }
 
 // --- Top-level Ontology ---
@@ -222,8 +274,10 @@ export interface Ontology {
   rules?: OntologyRule[]
   actions?: OntologyAction[]
   functions?: OntologyFunction[]
-  interfaces?: unknown[]
-  security?: unknown
+  interfaces?: OntologyInterface[]
+  security?: OntologySecurity
+  /** v1.2: named business filters */
+  business_qualifiers?: BusinessQualifier[]
 }
 
 export interface Project {
