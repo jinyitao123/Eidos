@@ -931,7 +931,7 @@ export function GraphReview() {
                         )}
                         {/* Extends indicator */}
                         {cls.extends && (
-                          <text x={p.x - r + 4} y={p.y - r + 8} fontSize="8" fill="#534AB7" title={`extends: ${cls.extends}`}>⬡</text>
+                          <text x={p.x - r + 4} y={p.y - r + 8} fontSize="8" fill="#534AB7">⬡</text>
                         )}
                       </g>
                     )
