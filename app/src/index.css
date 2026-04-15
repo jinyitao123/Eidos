@@ -52,15 +52,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-bg-primary: #232328;
-    --color-bg-secondary: #1A1A1E;
-    --color-bg-tertiary: #2C2C32;
-    --color-text-primary: #E8E6E3;
-    --color-text-secondary: #9B9590;
-    --color-text-tertiary: #6B6560;
-    --color-border-default: rgba(255,255,255,0.08);
-    --color-border-hover: rgba(255,255,255,0.15);
-    --color-accent-light: #3D2A1E;
+    --color-bg-primary: #2a2825;
+    --color-bg-secondary: #1d1b16;
+    --color-bg-tertiary: #3d3a35;
+    --color-text-primary: #e8e5e0;
+    --color-text-secondary: #c5c2bc;
+    --color-text-tertiary: #6b6560;
+    --color-border-default: #3d3a35;
+    --color-border-hover: #5d5a55;
+    --color-accent: #d85a30;
+    --color-accent-hover: #c04e28;
+    --color-accent-light: rgba(216,90,48,0.15);
     --color-success-tint: #1A2E1A;
     --color-success-tone: #7BC67B;
     --color-warning-tint: #2E2410;

@@ -744,7 +744,7 @@ export function GraphReview() {
   }
 
   return (
-    <div style={{ position: 'relative', maxWidth: 'none', margin: 0, height: 'calc(100vh - 52px)', display: 'flex', flexDirection: 'column', marginLeft: -32, marginRight: -32, marginTop: -24, marginBottom: -24, width: 'calc(100% + 64px)' }}>
+    <div style={{ position: 'relative', maxWidth: 'none', margin: 0, height: 'calc(100vh - 52px)', display: 'flex', flexDirection: 'column', marginLeft: -32, marginRight: -32, marginTop: -24, marginBottom: -24, width: 'calc(100% + 64px)', fontFamily: 'inherit' }}>
       <div className={styles.toolbar}>
         <h2 className={styles.toolbarTitle}>{projectName || '图谱审核'}</h2>
         <div className={styles.toolbarTabs}>
