@@ -191,6 +191,16 @@ export function AgentBuild() {
         updateMsg(accumulated, [...tools])
       } else if (evt.event === 'tool_call') {
         const name = evt.data.name as string
+        const args = evt.data.args as string || ''
+        // For save_output, show the YAML content inline so the user can see what was generated.
+        if (name === 'save_output') {
+          try {
+            const parsed = JSON.parse(args)
+            if (parsed.content) {
+              accumulated += '\n\n```yaml\n' + parsed.content + '\n```\n'
+            }
+          } catch { /* args not JSON, skip */ }
+        }
         // For repeated tools (like validate_yaml retries), update existing entry instead of adding new
         const existing = tools.find(t => t.name === name && t.status === 'done')
         if (existing) {
