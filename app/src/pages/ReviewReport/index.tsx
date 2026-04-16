@@ -110,8 +110,12 @@ function buildReportFromOntology(ontology: Ontology): { summary: Summary[]; issu
   const actionIds = new Set(actions.map(a => a.id))
   for (const rule of rules) {
     if (rule.trigger?.source) {
-      for (const src of rule.trigger.source) {
-        if (!actionIds.has(src)) {
+      // source can be a string or an array — normalize to array
+      const sources = Array.isArray(rule.trigger.source)
+        ? rule.trigger.source
+        : [rule.trigger.source]
+      for (const src of sources) {
+        if (typeof src === 'string' && src && !actionIds.has(src)) {
           issues.push({ type: 'consistency', text: `规则 ${rule.id} 的触发源引用了不存在的动作 "${src}"`, detail: '', fixLabel: '修正引用', autoFix: false })
         }
       }

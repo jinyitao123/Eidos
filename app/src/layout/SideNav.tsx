@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
-import { FolderOpen, MessageSquare, GitFork, BookOpen, ClipboardCheck, Sliders, Rocket } from 'lucide-react'
+import { FolderOpen, MessageSquare, GitFork, BookOpen, ClipboardCheck, Rocket } from 'lucide-react'
 import styles from './SideNav.module.css'
 
 async function loadProjectName(projectId: string): Promise<string> {
@@ -69,9 +69,6 @@ export function SideNav() {
           </NavLink>
           <NavLink to={`/project/${projectId}/report`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
             <ClipboardCheck size={15} /> 审核报告
-          </NavLink>
-          <NavLink to={`/project/${projectId}/strategy`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <Sliders size={15} /> 策略配置
           </NavLink>
           <NavLink to={`/project/${projectId}/publish`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
             <Rocket size={15} /> 发布管道
