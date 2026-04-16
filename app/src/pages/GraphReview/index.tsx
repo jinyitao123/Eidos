@@ -183,6 +183,56 @@ export function GraphReview() {
       .finally(() => setLoading(false))
   }, [projectId])
 
+  // Export full ontology YAML (merge ontology_structure + rules_actions)
+  async function handleExportYaml() {
+    if (!projectId) return
+    try {
+      // Fetch both stages
+      const { fetchStageOutput } = await import('../../api/ontology')
+      const structureYaml = await fetchStageOutput(projectId, 'ontology_structure').catch(() => '')
+      const rulesYaml = await fetchStageOutput(projectId, 'rules_actions').catch(() => '')
+
+      if (!structureYaml) {
+        setAlertMsg('本体结构尚未生成，请先完成 S2 本体架构设计')
+        return
+      }
+
+      // Merge: structure is the base, append rules/actions
+      const yamlModule = await import('js-yaml')
+      const structDoc = yamlModule.load(structureYaml) as Record<string, unknown>
+
+      // Unwrap ontology: wrapper if present
+      let merged: Record<string, unknown> = structDoc
+      if (structDoc.ontology && typeof structDoc.ontology === 'object') {
+        merged = { ...(structDoc.ontology as Record<string, unknown>) }
+        // Also merge top-level arrays (S2 hybrid format)
+        for (const key of ['classes', 'relationships', 'metrics', 'telemetry']) {
+          if (!merged[key] && structDoc[key]) merged[key] = structDoc[key]
+        }
+      }
+
+      // Merge rules_actions
+      if (rulesYaml) {
+        const rulesDoc = yamlModule.load(rulesYaml) as Record<string, unknown>
+        const ra = (rulesDoc.rules_actions || rulesDoc) as Record<string, unknown>
+        for (const key of ['rules', 'actions', 'functions']) {
+          if (ra[key]) merged[key] = ra[key]
+        }
+      }
+
+      const fullYaml = yamlModule.dump(merged, { lineWidth: 120 })
+      const blob = new Blob([fullYaml], { type: 'text/yaml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${merged.id || projectName || 'ontology'}.yaml`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setAlertMsg('导出失败: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   // Save ontology to MCP
   async function saveOntologyToMCP(updated: Ontology) {
     try {
@@ -757,6 +807,7 @@ export function GraphReview() {
           <span>遥测 {ontology?.telemetry?.length || 0}</span>
         </div>
         <div className={styles.toolbarActions}>
+          <button className={styles.btnSecondary} onClick={handleExportYaml}>导出 YAML</button>
           <button className={styles.btnSecondary} onClick={() => navigate(`/project/${projectId}/report`)}>审核报告</button>
           <button className={styles.btnPrimary} onClick={() => navigate(`/project/${projectId}/publish`)}>发布</button>
         </div>
