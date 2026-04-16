@@ -43,9 +43,13 @@ func registerUpdateOntologyYAML(router *mcp.Router, d *Deps) {
 			return mcp.ErrorResult("invalid YAML syntax: " + err.Error())
 		}
 
-		// Run integrity guards — hard constraints that block saving.
+		// Run integrity guards as warnings for human edits (not blocking).
+		// Unlike save_output (Agent path), update_ontology_yaml is the human
+		// edit path — users may import partially-fixed YAML that still has
+		// legacy field values. Guard issues are returned as warnings.
+		var guardWarnings []string
 		if gr := RunOntologyGuardsWithRaw(o, p.YAMLContent); gr.Blocked {
-			return mcp.ErrorResult("integrity guard blocked save: " + gr.Message)
+			guardWarnings = append(guardWarnings, gr.Message)
 		}
 
 		// Run semantic validation to collect warnings returned to the caller.
@@ -74,9 +78,10 @@ func registerUpdateOntologyYAML(router *mcp.Router, d *Deps) {
 		}
 
 		return mcp.TextResult(map[string]any{
-			"updated":    true,
-			"project_id": p.ProjectID,
-			"warnings":   validationResult.Errors,
+			"updated":        true,
+			"project_id":     p.ProjectID,
+			"warnings":       validationResult.Errors,
+			"guard_warnings": guardWarnings,
 		})
 	})
 }

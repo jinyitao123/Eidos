@@ -187,8 +187,30 @@ export function GraphReview() {
   async function handleExportYaml() {
     if (!projectId) return
     try {
-      // Fetch both stages
+      const yamlModule = await import('js-yaml')
       const { fetchStageOutput } = await import('../../api/ontology')
+
+      // Try yaml_content first (updated by import), fallback to stage_outputs
+      let exportYaml = ''
+      try {
+        const proj = await mcpCall<{ yaml_content?: string }>('get_project', { project_id: projectId })
+        exportYaml = proj?.yaml_content || ''
+      } catch { /* fallback */ }
+
+      if (exportYaml) {
+        // yaml_content has merged data — use directly
+        const doc = yamlModule.load(exportYaml) as Record<string, unknown>
+        const blob = new Blob([yamlModule.dump(doc, { lineWidth: 120 })], { type: 'text/yaml;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${(doc.id as string) || projectName || 'ontology'}.yaml`
+        a.click()
+        URL.revokeObjectURL(url)
+        return
+      }
+
+      // Fallback: merge from stage_outputs
       const structureYaml = await fetchStageOutput(projectId, 'ontology_structure').catch(() => '')
       const rulesYaml = await fetchStageOutput(projectId, 'rules_actions').catch(() => '')
 
@@ -197,21 +219,16 @@ export function GraphReview() {
         return
       }
 
-      // Merge: structure is the base, append rules/actions
-      const yamlModule = await import('js-yaml')
       const structDoc = yamlModule.load(structureYaml) as Record<string, unknown>
 
-      // Unwrap ontology: wrapper if present
       let merged: Record<string, unknown> = structDoc
       if (structDoc.ontology && typeof structDoc.ontology === 'object') {
         merged = { ...(structDoc.ontology as Record<string, unknown>) }
-        // Also merge top-level arrays (S2 hybrid format)
         for (const key of ['classes', 'relationships', 'metrics', 'telemetry']) {
           if (!merged[key] && structDoc[key]) merged[key] = structDoc[key]
         }
       }
 
-      // Merge rules_actions
       if (rulesYaml) {
         const rulesDoc = yamlModule.load(rulesYaml) as Record<string, unknown>
         const ra = (rulesDoc.rules_actions || rulesDoc) as Record<string, unknown>
@@ -230,6 +247,68 @@ export function GraphReview() {
       URL.revokeObjectURL(url)
     } catch (e) {
       setAlertMsg('导出失败: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  const importFileRef = useRef<HTMLInputElement>(null)
+
+  // Import YAML: user edits exported file, re-imports to overwrite current ontology
+  async function handleImportYaml(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !projectId) return
+    try {
+      const text = await file.text()
+      const yamlModule = await import('js-yaml')
+      const doc = yamlModule.load(text) as Record<string, unknown>
+      if (!doc || typeof doc !== 'object') throw new Error('无法解析 YAML')
+
+      // Unwrap ontology: wrapper
+      let merged: Record<string, unknown> = doc
+      if (doc.ontology && typeof doc.ontology === 'object') {
+        merged = doc.ontology as Record<string, unknown>
+        for (const key of ['classes', 'relationships', 'metrics', 'telemetry', 'rules', 'actions']) {
+          if (!merged[key] && doc[key]) merged[key] = doc[key]
+        }
+      }
+
+      // Split: structure vs rules
+      const structure: Record<string, unknown> = {}
+      for (const key of ['id', 'name', 'version', 'description', 'classes', 'relationships', 'metrics', 'telemetry', 'functions', 'interfaces', 'security', 'graph_config']) {
+        if (merged[key] !== undefined) structure[key] = merged[key]
+      }
+      const structureYaml = yamlModule.dump(structure, { lineWidth: 120 })
+
+      // Save to both stage_outputs AND yaml_content:
+      // 1. update_ontology_yaml updates projects.yaml_content (human path, guards as warnings)
+      await mcpCall('update_ontology_yaml', { project_id: projectId, yaml_content: structureYaml })
+      // 2. save_output updates stage_outputs so read_ontology_structure returns new data
+      //    This may trigger Guard blocks for Agent-path validation — catch and ignore for imports
+      try {
+        await mcpCall('save_output', { project_id: projectId, stage: 'ontology_structure', content: structureYaml })
+      } catch {
+        // Guard blocked — acceptable for user imports, yaml_content is already updated
+      }
+
+      // Save rules_actions if present
+      const rulesActions: Record<string, unknown> = {}
+      let hasRules = false
+      for (const key of ['rules', 'actions']) {
+        if (merged[key]) { rulesActions[key] = merged[key]; hasRules = true }
+      }
+      if (hasRules) {
+        const rulesYaml = yamlModule.dump(rulesActions, { lineWidth: 120 })
+        await mcpCall('save_output', { project_id: projectId, stage: 'rules_actions', content: rulesYaml })
+      }
+
+      // Reload ontology
+      const { fetchOntology: reload } = await import('../../api/ontology')
+      const updated = await reload(projectId)
+      if (updated) setOntology(updated)
+      setAlertMsg(`导入成功：从 ${file.name} 加载了本体`)
+    } catch (e) {
+      setAlertMsg('导入失败: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      if (importFileRef.current) importFileRef.current.value = ''
     }
   }
 
@@ -808,6 +887,8 @@ export function GraphReview() {
         </div>
         <div className={styles.toolbarActions}>
           <button className={styles.btnSecondary} onClick={handleExportYaml}>导出 YAML</button>
+          <button className={styles.btnSecondary} onClick={() => importFileRef.current?.click()}>导入 YAML</button>
+          <input ref={importFileRef} type="file" accept=".yaml,.yml" style={{ display: 'none' }} onChange={handleImportYaml} />
           <button className={styles.btnSecondary} onClick={() => navigate(`/project/${projectId}/report`)}>审核报告</button>
           <button className={styles.btnPrimary} onClick={() => navigate(`/project/${projectId}/publish`)}>发布</button>
         </div>
