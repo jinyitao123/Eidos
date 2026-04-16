@@ -412,6 +412,10 @@ func guardDerivedFormulaRefsExist(o *ontoyaml.Ontology) GuardResult {
 				if len(token) >= 3 && !attrIDs[token] {
 					// Check if it's a cross-class ref like "other_class.attr" — skip those
 					// Only flag plain attribute refs in the same class
+					// Skip cross-relationship references: [relationship_id].field syntax
+					if strings.Contains(formula, "["+token+"]") {
+						continue
+					}
 					if !strings.Contains(formula, "."+token) && !strings.Contains(formula, token+".") {
 						// Check if it matches any attribute in ANY class
 						foundElsewhere := false
