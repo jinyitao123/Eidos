@@ -271,34 +271,12 @@ export function GraphReview() {
         }
       }
 
-      // Split: structure vs rules
-      const structure: Record<string, unknown> = {}
-      for (const key of ['id', 'name', 'version', 'description', 'classes', 'relationships', 'metrics', 'telemetry', 'functions', 'interfaces', 'security', 'graph_config']) {
-        if (merged[key] !== undefined) structure[key] = merged[key]
-      }
-      const structureYaml = yamlModule.dump(structure, { lineWidth: 120 })
-
-      // Save to both stage_outputs AND yaml_content:
-      // 1. update_ontology_yaml updates projects.yaml_content (human path, guards as warnings)
-      await mcpCall('update_ontology_yaml', { project_id: projectId, yaml_content: structureYaml })
-      // 2. save_output updates stage_outputs so read_ontology_structure returns new data
-      //    This may trigger Guard blocks for Agent-path validation — catch and ignore for imports
-      try {
-        await mcpCall('save_output', { project_id: projectId, stage: 'ontology_structure', content: structureYaml })
-      } catch {
-        // Guard blocked — acceptable for user imports, yaml_content is already updated
-      }
-
-      // Save rules_actions if present
-      const rulesActions: Record<string, unknown> = {}
-      let hasRules = false
-      for (const key of ['rules', 'actions']) {
-        if (merged[key]) { rulesActions[key] = merged[key]; hasRules = true }
-      }
-      if (hasRules) {
-        const rulesYaml = yamlModule.dump(rulesActions, { lineWidth: 120 })
-        await mcpCall('save_output', { project_id: projectId, stage: 'rules_actions', content: rulesYaml })
-      }
+      // Save the complete merged YAML to yaml_content via update_ontology_yaml.
+      // This is the human edit path — guards are warnings, not blocking.
+      // We save the FULL document (classes + metrics + telemetry + rules + actions)
+      // as a single yaml_content, not split into separate stage_outputs.
+      const fullYaml = yamlModule.dump(merged, { lineWidth: 120 })
+      await mcpCall('update_ontology_yaml', { project_id: projectId, yaml_content: fullYaml })
 
       // Reload ontology
       const { fetchOntology: reload } = await import('../../api/ontology')
