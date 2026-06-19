@@ -4,13 +4,10 @@ go 1.26.1
 
 require (
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/jinyitao123/loom v0.1.0
+	github.com/jinyitao123/loom v0.2.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-// 用本地 loom(与已读到的 contract/provider API 对齐;两仓可能与已发布 tag 不同步)。
-replace github.com/jinyitao123/loom => /Users/jinyitao/Desktop/loom
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
