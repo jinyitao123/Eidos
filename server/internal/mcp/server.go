@@ -54,8 +54,19 @@ func ErrorResult(msg string) *ToolCallResult {
 	}
 }
 
-// Handler returns an HTTP handler implementing JSON-RPC 2.0 for MCP.
+// Handler returns an HTTP handler implementing JSON-RPC 2.0 for MCP (full tool set).
 func Handler(router *Router) http.HandlerFunc {
+	return handlerImpl(router, "")
+}
+
+// HandlerWithProfile mounts the MCP handler on a path that always applies the given
+// tool profile — used for headless executors, because Claude Code's HTTP MCP client
+// drops query strings (so ?profile= won't reach us; a distinct path does).
+func HandlerWithProfile(router *Router, profile string) http.HandlerFunc {
+	return handlerImpl(router, profile)
+}
+
+func handlerImpl(router *Router, forcedProfile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -81,7 +92,25 @@ func Handler(router *Router) http.HandlerFunc {
 			return
 		}
 
-		result, rpcErr := router.Handle(r.Context(), req.Method, req.Params)
+		// 精简工具面:无头 agent 走带 profile 的专用路径(/mcp-ontology),只看到建模工具;
+		// 前端走 /mcp 看全部。路径优先于 query(Claude Code 会丢 query string)。
+		ctx := r.Context()
+		profile := forcedProfile
+		if profile == "" {
+			profile = r.URL.Query().Get("profile")
+		}
+		if profile != "" {
+			ctx = withProfile(ctx, profile)
+		}
+
+		// JSON-RPC 通知（无 id）：处理但不回响应体（MCP streamable-HTTP 要求 202）。
+		if req.ID == nil {
+			_, _ = router.Handle(ctx, req.Method, req.Params)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+
+		result, rpcErr := router.Handle(ctx, req.Method, req.Params)
 		if rpcErr != nil {
 			writeJSON(w, jsonRPCResponse{
 				JSONRPC: "2.0",

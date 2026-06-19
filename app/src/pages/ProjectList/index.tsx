@@ -115,11 +115,8 @@ export function ProjectList() {
 
   function handleClick(p: Project) {
     if (p.status === 'pending') return
-    if (p.status === 'building') {
-      navigate(`/project/${p.id}/build`)
-    } else {
-      navigate(`/project/${p.id}/graph`)
-    }
+    // 收敛到工作台:所有项目入口都进 Studio(旧库内容首开自动迁入版本化库)。
+    navigate(`/project/${p.id}/studio`)
   }
 
   function handleCreate() {
@@ -143,7 +140,7 @@ export function ProjectList() {
     setShowCreate(false)
     try {
       const r = await mcpCall<{ id: string }>('create_project', { name, description: '' })
-      navigate(`/project/${r.id}/build`)
+      navigate(`/project/${r.id}/studio`)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setAlertState({ message: '创建失败: ' + msg, type: 'error' })

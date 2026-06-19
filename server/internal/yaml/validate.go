@@ -232,9 +232,83 @@ func validateFormat(o *Ontology, r *ValidationResult) {
 }
 
 func validateSemantic(o *Ontology, r *ValidationResult) {
-	classMap := make(map[string]*Class)
+	classMap := make(map[string]bool)
 	for i := range o.Classes {
-		classMap[o.Classes[i].ID] = &o.Classes[i]
+		classMap[o.Classes[i].ID] = true
+	}
+	attrMap := make(map[string]map[string]bool)
+	for _, c := range o.Classes {
+		m := make(map[string]bool, len(c.Attributes))
+		for _, a := range c.Attributes {
+			m[a.ID] = true
+		}
+		attrMap[c.ID] = m
+	}
+
+	// Nexus-origin checks: entity kind, status, layer, domain
+	for i, c := range o.Classes {
+		path := fmt.Sprintf("classes[%d]", i)
+		if c.Kind != "" && !ValidEntityKind(c.Kind) {
+			r.addWarning("semantic", fmt.Sprintf("entity '%s' has invalid kind '%s' (expected person/event/thing)", c.ID, c.Kind), path+".kind")
+		}
+		if c.Status != "" && !ValidEntityStatus(c.Status) {
+			r.addWarning("semantic", fmt.Sprintf("entity '%s' has invalid status '%s' (expected proposed/reviewing/confirmed)", c.ID, c.Status), path+".status")
+		}
+		if !ValidLayer(c.Layer) {
+			r.addWarning("semantic", fmt.Sprintf("entity '%s' has invalid layer '%s'", c.ID, c.Layer), path+".layer")
+		}
+		pkCount := 0
+		for _, a := range c.Attributes {
+			if a.PrimaryKey {
+				pkCount++
+			}
+			if a.RefTo != "" {
+				parts := strings.SplitN(a.RefTo, ".", 2)
+				if !classMap[parts[0]] {
+					r.addWarning("semantic", fmt.Sprintf("attribute '%s.%s' ref_to references unknown entity '%s'", c.ID, a.ID, parts[0]), path)
+				}
+			}
+			if len(a.EnumAliases) > 0 && len(a.EnumValues) > 0 {
+				evSet := make(map[string]bool, len(a.EnumValues))
+				for _, v := range a.EnumValues {
+					evSet[v] = true
+				}
+				for k := range a.EnumAliases {
+					if !evSet[k] {
+						r.addWarning("semantic", fmt.Sprintf("attribute '%s.%s' has enum_alias key '%s' not in enum_values", c.ID, a.ID, k), path)
+					}
+				}
+			}
+		}
+		if pkCount > 1 {
+			r.addWarning("semantic", fmt.Sprintf("entity '%s' has %d primary keys, expected at most 1", c.ID, pkCount), path)
+		}
+	}
+
+	// Relationship direction/kind validation
+	for i, rel := range o.Relationships {
+		path := fmt.Sprintf("relationships[%d]", i)
+		if !ValidDirection(rel.Direction) {
+			r.addWarning("semantic", fmt.Sprintf("relationship '%s' has invalid direction '%s'", rel.ID, rel.Direction), path+".direction")
+		}
+		if !ValidRelKind(rel.Kind) {
+			r.addWarning("semantic", fmt.Sprintf("relationship '%s' has invalid kind '%s'", rel.ID, rel.Kind), path+".kind")
+		}
+		genericNames := map[string]bool{"关联": true, "引用": true, "对应": true, "关系": true, "连接": true, "链接": true}
+		if genericNames[rel.Name] {
+			r.addWarning("semantic", fmt.Sprintf("relationship '%s' uses generic name '%s', consider a domain-specific verb", rel.ID, rel.Name), path+".name")
+		}
+	}
+
+	// Concept validation
+	for i, c := range o.Concepts {
+		path := fmt.Sprintf("concepts[%d]", i)
+		if c.Subject != "" && !classMap[c.Subject] {
+			r.addWarning("semantic", fmt.Sprintf("concept '%s' subject references unknown entity '%s'", c.ID, c.Subject), path+".subject")
+		}
+		if c.Predicate != nil && c.Subject != "" {
+			validatePredicate(c.Predicate, c.ID, c.Subject, classMap, attrMap, path+".predicate", r)
+		}
 	}
 
 	// Check first citizen has enough attributes
@@ -423,4 +497,26 @@ func isValidMetricKind(k string) bool {
 
 func isValidMetricStatus(s string) bool {
 	return s == "implemented" || s == "designed" || s == "undefined"
+}
+
+func validatePredicate(p *Predicate, conceptID, subject string, classMap map[string]bool, attrMap map[string]map[string]bool, path string, r *ValidationResult) {
+	if p.IsLeaf() {
+		if p.Field != "" {
+			if attrs, ok := attrMap[subject]; ok {
+				if !attrs[p.Field] {
+					r.addWarning("semantic", fmt.Sprintf("concept '%s' predicate field '%s' not found in entity '%s'", conceptID, p.Field, subject), path)
+				}
+			}
+		}
+		if p.Op != "" && !ValidConceptOp(p.Op) {
+			r.addWarning("semantic", fmt.Sprintf("concept '%s' predicate has invalid op '%s'", conceptID, p.Op), path+".op")
+		}
+		return
+	}
+	for i := range p.All {
+		validatePredicate(&p.All[i], conceptID, subject, classMap, attrMap, fmt.Sprintf("%s.all[%d]", path, i), r)
+	}
+	for i := range p.Any {
+		validatePredicate(&p.Any[i], conceptID, subject, classMap, attrMap, fmt.Sprintf("%s.any[%d]", path, i), r)
+	}
 }

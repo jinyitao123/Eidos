@@ -4,6 +4,9 @@
    ============================================================ */
 
 :root {
+  /* loom 仅浅色:强制原生控件(下拉/滚动条)也走浅色,即使系统偏好 dark。 */
+  color-scheme: light;
+
   /* Ground palette */
   --color-bg-primary: #FFFFFF;
   --color-bg-secondary: #F7F5F2;
@@ -50,31 +53,7 @@
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-bg-primary: #2a2825;
-    --color-bg-secondary: #1d1b16;
-    --color-bg-tertiary: #3d3a35;
-    --color-text-primary: #e8e5e0;
-    --color-text-secondary: #c5c2bc;
-    --color-text-tertiary: #6b6560;
-    --color-border-default: #3d3a35;
-    --color-border-hover: #5d5a55;
-    --color-accent: #d85a30;
-    --color-accent-hover: #c04e28;
-    --color-accent-light: rgba(216,90,48,0.15);
-    --color-success-tint: #1A2E1A;
-    --color-success-tone: #7BC67B;
-    --color-warning-tint: #2E2410;
-    --color-warning-tone: #D4A84A;
-    --color-danger-tint: #2E1414;
-    --color-danger-tone: #E47070;
-    --color-info-tint: #0E1A2E;
-    --color-info-tone: #6BA3E0;
-    --shadow-card: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
-    --shadow-elevated: 0 6px 20px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.4);
-  }
-}
+/* loom 设计语言:仅浅色主题,不提供暗主题(即使系统偏好 dark 也保持浅色)。 */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 

@@ -1,0 +1,192 @@
+/* 全部走设计令牌,禁硬编色值(对齐 02 §2 令牌唯一真相)。 */
+.studio {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-primary);
+}
+.left {
+  width: 38%;
+  min-width: 320px;
+  max-width: 560px;
+  border-right: 1px solid var(--color-border-default);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+}
+.right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── 对话(左,统一 AI 协作面)── */
+.chatPanel { display: flex; flex-direction: column; height: 100%; }
+.chatScroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.chatEmpty { color: var(--color-text-tertiary); font-size: 13px; line-height: 1.8; margin: auto 0; text-align: center; }
+.msgUser {
+  align-self: flex-end; max-width: 85%;
+  background: var(--color-accent); color: #fff;
+  padding: 8px 12px; border-radius: var(--radius-md); border-bottom-right-radius: var(--radius-sm);
+  font-size: 13px; white-space: pre-wrap; line-height: 1.6;
+}
+.msgAssistant {
+  align-self: flex-start; max-width: 92%;
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  padding: 8px 12px; border-radius: var(--radius-md); border-bottom-left-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.msgBody { white-space: pre-wrap; line-height: 1.6; }
+.toolChips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.chip { font-size: 10px; font-family: var(--font-mono); padding: 1px 6px; border-radius: var(--radius-full); }
+.chip_running { background: var(--color-warning-tint); color: var(--color-warning-tone); }
+.chip_done { background: var(--color-success-tint); color: var(--color-success-tone); }
+.chip_error { background: var(--color-danger-tint); color: var(--color-danger-tone); }
+
+.chatInput { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--color-border-default); }
+.chatInput textarea {
+  flex: 1; resize: none; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px;
+  background: var(--color-bg-primary); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); font-family: inherit;
+}
+.chatInput textarea:focus { outline: none; border-color: var(--color-accent); }
+.chatInput button {
+  align-self: flex-end; padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  background: var(--color-accent); color: #fff; font-size: 13px;
+}
+.chatInput button:hover:not(:disabled) { background: var(--color-accent-hover); }
+.chatInput button:disabled { opacity: 0.45; cursor: default; }
+
+/* ── 顶栏(本体名 + 健康徽章 + tab + 抽屉触发)── */
+.topbar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--color-border-default); flex-wrap: wrap; }
+.ontName { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.healthBadge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--radius-full); cursor: pointer; border: none; }
+.health_good { background: var(--color-success-tint); color: var(--color-success-tone); }
+.health_warn { background: var(--color-warning-tint); color: var(--color-warning-tone); }
+.health_bad { background: var(--color-danger-tint); color: var(--color-danger-tone); }
+.health_none { background: var(--color-bg-tertiary); color: var(--color-text-tertiary); }
+
+.tabs { display: flex; align-items: center; gap: 2px; }
+.tab {
+  font-size: 13px; padding: 5px 12px; border-radius: var(--radius-sm); border: none; background: transparent;
+  color: var(--color-text-secondary); cursor: pointer;
+}
+.tab:hover { background: var(--color-bg-secondary); }
+.tabActive { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+.topbarRight { margin-left: auto; display: flex; gap: 4px; }
+.drawerBtn {
+  font-size: 12px; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  background: transparent; border: 1px solid var(--color-border-default); color: var(--color-text-secondary);
+}
+.drawerBtn:hover { border-color: var(--color-border-hover); color: var(--color-text-primary); }
+
+.body { flex: 1; overflow-y: auto; padding: 16px; }
+
+/* ── 图谱 tab:卡片/图 视图切换 ── */
+.viewToggle { display: inline-flex; gap: 2px; margin-bottom: 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 2px; }
+.viewToggle button { font-size: 12px; padding: 3px 12px; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; border-radius: 6px; }
+.viewOn { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+.graphSvg { width: 100%; height: auto; max-height: 560px; display: block; }
+.graphNode { cursor: pointer; }
+.graphNodeName { font-size: 11px; font-weight: 600; fill: var(--color-text-primary); pointer-events: none; }
+.graphNodeKind { font-size: 9px; fill: var(--color-text-secondary); pointer-events: none; }
+.graphEdgeLabel { font-size: 9px; fill: var(--color-text-tertiary); }
+
+/* ── 图谱 tab(业务对象 + 内联编辑)── */
+.empty { padding: 40px 24px; color: var(--color-text-tertiary); font-size: 13px; line-height: 1.9; text-align: center; }
+.errLine { color: var(--color-danger-tone); background: var(--color-danger-tint); font-size: 12px; padding: 6px 10px; border-radius: var(--radius-sm); margin-bottom: 10px; }
+.classCard {
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  padding: 10px 12px; margin-bottom: 10px; background: var(--color-bg-secondary);
+}
+.classHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.fcStar { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--color-text-tertiary); padding: 0; line-height: 1; }
+.fcOn { color: var(--color-accent); }
+.classNameInput {
+  font-size: 14px; font-weight: 600; background: transparent; border: 1px solid transparent;
+  color: var(--color-text-primary); border-radius: var(--radius-sm); padding: 2px 4px; max-width: 200px;
+}
+.classNameInput:hover { border-color: var(--color-border-default); }
+.classNameInput:focus { border-color: var(--color-accent); outline: none; }
+/* kind 是分类不是状态 → 中性徽章(02 §2.2 原则3:语义色只表状态)。 */
+.kindBadge { font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); background: var(--color-bg-tertiary); color: var(--color-text-secondary); }
+.pendingBadge { font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); background: var(--color-warning-tint); color: var(--color-warning-tone); }
+.classId { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-tertiary); }
+.spin { color: var(--color-text-tertiary); font-size: 12px; }
+
+.attrTable { width: 100%; border-collapse: collapse; }
+.attrTable td { padding: 2px 4px; vertical-align: middle; }
+.attrName { width: 100%; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text-primary); padding: 3px 5px; font-size: 13px; }
+.attrName:hover { border-color: var(--color-border-default); }
+.attrName:focus { border-color: var(--color-accent); outline: none; }
+.attrIdCell { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-tertiary); white-space: nowrap; }
+.attrType { font-size: 12px; background: var(--color-bg-primary); color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 2px 4px; }
+.delBtn { background: none; border: none; color: var(--color-text-tertiary); cursor: pointer; font-size: 15px; line-height: 1; }
+.delBtn:hover { color: var(--color-danger-tone); }
+.addAttrBtn { margin-top: 4px; font-size: 12px; background: transparent; border: 1px dashed var(--color-border-default); color: var(--color-text-secondary); border-radius: var(--radius-sm); padding: 3px 10px; cursor: pointer; }
+.addAttrBtn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.addAttrForm { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.addAttrForm input, .addAttrForm select { font-size: 12px; padding: 3px 6px; border-radius: var(--radius-sm); background: var(--color-bg-primary); color: var(--color-text-primary); border: 1px solid var(--color-border-default); }
+.addAttrForm input { width: 90px; }
+.addAttrForm button { font-size: 12px; padding: 3px 10px; border-radius: var(--radius-sm); border: none; cursor: pointer; background: var(--color-accent); color: #fff; }
+.addAttrForm button:last-child { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-default); }
+
+.relSection { margin-top: 16px; border-top: 1px solid var(--color-border-default); padding-top: 12px; }
+.relTitle { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 6px; }
+.relRow { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; color: var(--color-text-primary); }
+.relArrow { color: var(--color-text-tertiary); font-size: 12px; }
+.relCard { font-size: 10px; font-family: var(--font-mono); color: var(--color-text-tertiary); }
+.relHint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 8px; }
+
+/* ── 评估 tab(健康环 + findings,可视化而非文字墙)── */
+.evalWrap { display: flex; flex-direction: column; gap: 18px; }
+.ring { width: 96px; height: 96px; border-radius: var(--radius-full); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ringNum { font-size: 30px; font-weight: 700; line-height: 1; }
+.ringUnit { font-size: 11px; color: var(--color-text-tertiary); }
+.findingItem { font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--color-bg-secondary); color: var(--color-text-primary); margin-bottom: 6px; border-left: 3px solid var(--color-warning-tone); }
+
+/* ── 列表态(规则/指标)+ 能力态(实例)── */
+.listRow { padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); margin-bottom: 6px; background: var(--color-bg-secondary); }
+.listName { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.listMeta { font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-mono); margin-top: 2px; }
+.capability { padding: 36px 24px; text-align: center; color: var(--color-text-tertiary); font-size: 13px; line-height: 1.9; border: 1px dashed var(--color-border-default); border-radius: var(--radius-md); }
+
+/* ── 逻辑深度表单(规则/指标/动作)── */
+.logicCard { border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 10px; background: var(--color-bg-secondary); }
+.logicHead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.logicName { font-size: 14px; font-weight: 600; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text-primary); padding: 2px 4px; flex: 1; min-width: 0; }
+.logicName:hover { border-color: var(--color-border-default); }
+.logicName:focus { border-color: var(--color-accent); outline: none; }
+.logicId { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-tertiary); }
+.formGrid { display: grid; grid-template-columns: 72px 1fr; gap: 6px 10px; align-items: center; }
+.fLabel { font-size: 12px; color: var(--color-text-secondary); }
+.fInput { font-size: 13px; padding: 4px 7px; border-radius: var(--radius-sm); background: var(--color-bg-primary); color: var(--color-text-primary); border: 1px solid var(--color-border-default); width: 100%; }
+.fInput:focus { outline: none; border-color: var(--color-accent); }
+.fInputInline { font-size: 11px; padding: 2px 6px; border-radius: var(--radius-full); background: var(--color-bg-primary); color: var(--color-text-secondary); border: 1px solid var(--color-border-default); }
+.fCheck { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.chipPick { display: flex; flex-wrap: wrap; gap: 4px; }
+.chipPickBtn { font-size: 11px; padding: 2px 9px; border-radius: var(--radius-full); border: 1px solid var(--color-border-default); background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; }
+.chipPickOn { background: var(--color-accent-light); color: var(--color-accent-hover); border-color: var(--color-accent); }
+.subTitle { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin: 10px 0 4px; }
+.writeRow { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 4px; align-items: center; }
+
+/* ── 抽屉(版本/继承)── */
+.drawerMask { position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 90vw; z-index: 41;
+  background: var(--color-bg-primary); border-left: 1px solid var(--color-border-default);
+  box-shadow: var(--shadow-elevated); display: flex; flex-direction: column;
+  animation: slideIn var(--duration-medium) var(--ease-out);
+}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.drawerHead { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--color-border-default); }
+.drawerTitle { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.drawerClose { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-text-tertiary); }
+.drawerBody { flex: 1; overflow-y: auto; padding: 16px; }
+.verRow { padding: 8px 0; border-bottom: 1px solid var(--color-border-default); }
+.verTop { display: flex; align-items: center; gap: 8px; }
+.verNum { font-weight: 600; font-size: 13px; color: var(--color-text-primary); }
+.verKind { font-size: 10px; padding: 1px 6px; border-radius: var(--radius-full); }
+.verKind_release { background: var(--color-info-tint); color: var(--color-info-tone); }
+.verKind_revision { background: var(--color-bg-tertiary); color: var(--color-text-secondary); }
+.verMeta { font-size: 11px; color: var(--color-text-tertiary); margin-left: auto; }
+.restoreLink { font-size: 11px; background: none; border: none; color: var(--color-accent); cursor: pointer; padding: 4px 0 0; }
+.inheritPre { font-size: 12px; line-height: 1.7; color: var(--color-text-primary); white-space: pre-wrap; }
+.publishBtn { font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm); border: none; background: var(--color-accent); color: #fff; cursor: pointer; margin-bottom: 12px; }
