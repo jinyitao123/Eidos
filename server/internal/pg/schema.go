@@ -83,6 +83,42 @@ CREATE TABLE IF NOT EXISTS ontology.strategy_profiles (
 );
 CREATE INDEX IF NOT EXISTS idx_strategy_profiles_project
     ON ontology.strategy_profiles(project_id) WHERE is_active = true;
+
+-- Versioned ontology document store (Nexus-origin)
+CREATE TABLE IF NOT EXISTS ontology.ontologies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    version TEXT NOT NULL DEFAULT '',
+    doc JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ontology.ontology_versions (
+    ontology_id TEXT NOT NULL,
+    version INT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'revision',
+    content_hash TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'edit',
+    doc JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (ontology_id, version)
+);
+
+-- Proposal governance
+CREATE TABLE IF NOT EXISTS ontology.ontology_proposals (
+    id TEXT PRIMARY KEY,
+    ontology_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    entity_id TEXT NOT NULL DEFAULT '',
+    payload TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    proposer TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decided_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_proposals_ontology_status
+    ON ontology.ontology_proposals(ontology_id, status);
 `
 
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {

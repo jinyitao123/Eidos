@@ -9,10 +9,15 @@ import (
 	"syscall"
 	"time"
 
+	"ontologyserver/internal/chat"
 	"ontologyserver/internal/config"
+	"ontologyserver/internal/executor"
 	"ontologyserver/internal/mcp"
 	"ontologyserver/internal/neo"
 	"ontologyserver/internal/pg"
+	"ontologyserver/internal/proposals"
+	"ontologyserver/internal/rest"
+	"ontologyserver/internal/store"
 	"ontologyserver/internal/tools"
 )
 
@@ -46,15 +51,51 @@ func main() {
 		log.Println("neo4j: connected")
 	}
 
-	// Build MCP router with all 16 tools
+	// Initialize versioned store and proposal governance
+	ontStore := store.NewPG(pool)
+	propStore := proposals.NewPG(pool)
+
+	// Build MCP router with all tools
 	router := mcp.NewRouter()
-	tools.RegisterAll(router, &tools.Deps{PG: pool, Neo: neoDB})
+	tools.RegisterAll(router, &tools.Deps{
+		PG:        pool,
+		Neo:       neoDB,
+		Store:     ontStore,
+		Proposals: propStore,
+	})
+
+	// Build HTTP mux: MCP on /mcp (and root for backward compat), REST on /api/
+	httpMux := http.NewServeMux()
+	mcpHandler := mcp.Handler(router)
+	httpMux.HandleFunc("/mcp", mcpHandler)
+	httpMux.HandleFunc("/", mcpHandler)
+	// 精简工具面专用路径(无头执行器连这个,只暴露建模工具)。
+	httpMux.HandleFunc("/mcp-ontology", mcp.HandlerWithProfile(router, "ontology"))
+	restH := &rest.Handler{Store: ontStore, Proposals: propStore}
+	restH.Mount(httpMux)
+
+	// 可换执行器（AI 对话）：weave（默认，零回归）/ claude-code / opencode
+	exe, err := executor.New(executor.Config{
+		Kind:         cfg.Executor,
+		WeaveURL:     cfg.WeaveURL,
+		MCPURL:       cfg.MCPSelfURL,
+		Model:        cfg.ExecutorModel,
+		Workspace:    "",
+		LoomProvider: cfg.LoomProvider,
+		LoomModel:    cfg.LoomModel,
+		LoomKey:      cfg.LoomKey,
+	})
+	if err != nil {
+		log.Fatalf("executor: %v", err)
+	}
+	log.Printf("chat executor: %s", exe.Name())
+	chatH := &chat.Handler{Exec: exe}
+	chatH.Mount(httpMux)
 
 	// Start HTTP server
-	handler := mcp.Handler(router)
 	srv := &http.Server{
 		Addr:         cfg.Addr(),
-		Handler:      handler,
+		Handler:      httpMux,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}

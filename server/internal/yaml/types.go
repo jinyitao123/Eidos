@@ -9,6 +9,7 @@ type Ontology struct {
 	Version          string         `yaml:"version" json:"version"`
 	Description      string         `yaml:"description" json:"description"`
 	SceneAnalysisRef string         `yaml:"scene_analysis_ref,omitempty" json:"scene_analysis_ref,omitempty"`
+	ParentRefs       []string       `yaml:"parent_refs,omitempty" json:"parent_refs,omitempty"`
 	Classes          []Class        `yaml:"classes" json:"classes"`
 	Relationships    []Relationship `yaml:"relationships" json:"relationships"`
 	Metrics          []Metric       `yaml:"metrics,omitempty" json:"metrics,omitempty"`
@@ -18,7 +19,11 @@ type Ontology struct {
 	Functions        []Function     `yaml:"functions,omitempty" json:"functions,omitempty"`
 	Interfaces       []Interface    `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
 	Security         *Security      `yaml:"security,omitempty" json:"security,omitempty"`
+	Concepts         []Concept      `yaml:"concepts,omitempty" json:"concepts,omitempty"`
 }
+
+// Entity is an alias for Class, used by newer code and Nexus-origin tools.
+type Entity = Class
 
 // OntologyDoc wraps the top-level "ontology:" key in the YAML file.
 type OntologyDoc struct {
@@ -27,15 +32,24 @@ type OntologyDoc struct {
 
 // Class represents a data entity in the ontology.
 type Class struct {
-	ID               string             `yaml:"id" json:"id"`
-	Name             string             `yaml:"name" json:"name"`
-	Description      string             `yaml:"description,omitempty" json:"description,omitempty"`
-	FirstCitizen     bool               `yaml:"first_citizen,omitempty" json:"first_citizen,omitempty"`
-	Phase            string             `yaml:"phase" json:"phase"`
-	ImportedFrom     string             `yaml:"imported_from,omitempty" json:"imported_from,omitempty"`
-	Extends          string             `yaml:"extends,omitempty" json:"extends,omitempty"`                        // v1.2
-	UniqueConstraints []UniqueConstraint `yaml:"unique_constraints,omitempty" json:"unique_constraints,omitempty"` // v1.2
-	Attributes       []Attribute        `yaml:"attributes" json:"attributes"`
+	ID                string             `yaml:"id" json:"id"`
+	Name              string             `yaml:"name" json:"name"`
+	Description       string             `yaml:"description,omitempty" json:"description,omitempty"`
+	FirstCitizen      bool               `yaml:"first_citizen,omitempty" json:"first_citizen,omitempty"`
+	Phase             string             `yaml:"phase,omitempty" json:"phase,omitempty"`
+	ImportedFrom      string             `yaml:"imported_from,omitempty" json:"imported_from,omitempty"`
+	Extends           string             `yaml:"extends,omitempty" json:"extends,omitempty"`
+	UniqueConstraints []UniqueConstraint `yaml:"unique_constraints,omitempty" json:"unique_constraints,omitempty"`
+	Attributes        []Attribute        `yaml:"attributes" json:"attributes"`
+	Kind              string             `yaml:"kind,omitempty" json:"kind,omitempty"`
+	Status            string             `yaml:"status,omitempty" json:"status,omitempty"`
+	Source            string             `yaml:"source,omitempty" json:"source,omitempty"`
+	ParentRef         string             `yaml:"parent_ref,omitempty" json:"parent_ref,omitempty"`
+	InheritedFrom     string             `yaml:"inherited_from,omitempty" json:"inherited_from,omitempty"`
+	Domain            string             `yaml:"domain,omitempty" json:"domain,omitempty"`
+	Layer             string             `yaml:"layer,omitempty" json:"layer,omitempty"`
+	Observable        *bool              `yaml:"observable,omitempty" json:"observable,omitempty"`
+	Aliases           []string           `yaml:"aliases,omitempty" json:"aliases,omitempty"`
 }
 
 // UniqueConstraint defines a composite unique key on a class.
@@ -45,36 +59,46 @@ type UniqueConstraint struct {
 
 // Attribute represents a single field within a class.
 type Attribute struct {
-	ID           string   `yaml:"id" json:"id"`
-	Name         string   `yaml:"name" json:"name"`
-	Type         string   `yaml:"type" json:"type"`
-	Required     bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	Unique       bool     `yaml:"unique,omitempty" json:"unique,omitempty"`
-	Default      any      `yaml:"default,omitempty" json:"default,omitempty"`
-	Derived      string   `yaml:"derived,omitempty" json:"derived,omitempty"`
-	Formula      string   `yaml:"formula,omitempty" json:"formula,omitempty"`
-	GraphSync    bool     `yaml:"graph_sync,omitempty" json:"graph_sync,omitempty"`
-	Configurable bool     `yaml:"configurable,omitempty" json:"configurable,omitempty"`
-	EnumValues   []string `yaml:"enum_values,omitempty" json:"enum_values,omitempty"`
-	Unit         string   `yaml:"unit,omitempty" json:"unit,omitempty"`
-	ValueRange   string   `yaml:"value_range,omitempty" json:"value_range,omitempty"`
-	Phase        string   `yaml:"phase,omitempty" json:"phase,omitempty"`
-	Description  string   `yaml:"description,omitempty" json:"description,omitempty"`
-	IsMetric     bool     `yaml:"is_metric,omitempty" json:"is_metric,omitempty"`   // v1.2
-	Exposed      bool     `yaml:"exposed,omitempty" json:"exposed,omitempty"`       // v1.2
+	ID            string              `yaml:"id" json:"id"`
+	Name          string              `yaml:"name" json:"name"`
+	Type          string              `yaml:"type" json:"type"`
+	Required      bool                `yaml:"required,omitempty" json:"required,omitempty"`
+	Unique        bool                `yaml:"unique,omitempty" json:"unique,omitempty"`
+	Default       any                 `yaml:"default,omitempty" json:"default,omitempty"`
+	Derived       string              `yaml:"derived,omitempty" json:"derived,omitempty"`
+	Formula       string              `yaml:"formula,omitempty" json:"formula,omitempty"`
+	GraphSync     bool                `yaml:"graph_sync,omitempty" json:"graph_sync,omitempty"`
+	Configurable  bool                `yaml:"configurable,omitempty" json:"configurable,omitempty"`
+	EnumValues    []string            `yaml:"enum_values,omitempty" json:"enum_values,omitempty"`
+	Unit          string              `yaml:"unit,omitempty" json:"unit,omitempty"`
+	ValueRange    string              `yaml:"value_range,omitempty" json:"value_range,omitempty"`
+	Phase         string              `yaml:"phase,omitempty" json:"phase,omitempty"`
+	Description   string              `yaml:"description,omitempty" json:"description,omitempty"`
+	IsMetric      bool                `yaml:"is_metric,omitempty" json:"is_metric,omitempty"`
+	Exposed       bool                `yaml:"exposed,omitempty" json:"exposed,omitempty"`
+	Constraint    map[string]any      `yaml:"constraint,omitempty" json:"constraint,omitempty"`
+	RefTo         string              `yaml:"ref_to,omitempty" json:"ref_to,omitempty"`
+	PrimaryKey    bool                `yaml:"primary_key,omitempty" json:"primary_key,omitempty"`
+	InheritedFrom string              `yaml:"inherited_from,omitempty" json:"inherited_from,omitempty"`
+	Aliases       []string            `yaml:"aliases,omitempty" json:"aliases,omitempty"`
+	EnumAliases   map[string][]string `yaml:"enum_aliases,omitempty" json:"enum_aliases,omitempty"`
 }
 
 // Relationship connects two classes.
 type Relationship struct {
-	ID             string          `yaml:"id" json:"id"`
-	Name           string          `yaml:"name" json:"name"`
-	From           string          `yaml:"from" json:"from"`
-	To             string          `yaml:"to" json:"to"`
-	Cardinality    string          `yaml:"cardinality" json:"cardinality"`
-	Required       bool            `yaml:"required,omitempty" json:"required,omitempty"`
-	Phase          string          `yaml:"phase,omitempty" json:"phase,omitempty"`
-	Description    string          `yaml:"description,omitempty" json:"description,omitempty"`
-	EdgeAttributes []EdgeAttribute `yaml:"edge_attributes,omitempty" json:"edge_attributes,omitempty"`
+	ID              string          `yaml:"id" json:"id"`
+	Name            string          `yaml:"name" json:"name"`
+	From            string          `yaml:"from" json:"from"`
+	To              string          `yaml:"to" json:"to"`
+	Cardinality     string          `yaml:"cardinality" json:"cardinality"`
+	Required        bool            `yaml:"required,omitempty" json:"required,omitempty"`
+	Phase           string          `yaml:"phase,omitempty" json:"phase,omitempty"`
+	Description     string          `yaml:"description,omitempty" json:"description,omitempty"`
+	EdgeAttributes  []EdgeAttribute `yaml:"edge_attributes,omitempty" json:"edge_attributes,omitempty"`
+	Direction       string          `yaml:"direction,omitempty" json:"direction,omitempty"`
+	Status          string          `yaml:"status,omitempty" json:"status,omitempty"`
+	Kind            string          `yaml:"kind,omitempty" json:"kind,omitempty"`
+	LinkedAttribute string          `yaml:"linked_attribute,omitempty" json:"linked_attribute,omitempty"`
 }
 
 // EdgeAttribute is a data field on a relationship edge.
@@ -336,4 +360,53 @@ type AttributeLevelSec struct {
 type ActionLevelSec struct {
 	Action       string           `yaml:"action" json:"action"`
 	ExecutableBy ActionPermission `yaml:"executable_by" json:"executable_by"`
+}
+
+// Concept is a named segment: a subject entity + predicate conditions.
+type Concept struct {
+	ID          string     `yaml:"id" json:"id"`
+	Name        string     `yaml:"name" json:"name"`
+	Aliases     []string   `yaml:"aliases,omitempty" json:"aliases,omitempty"`
+	Subject     string     `yaml:"subject" json:"subject"`
+	Predicate   *Predicate `yaml:"predicate,omitempty" json:"predicate,omitempty"`
+	Description string     `yaml:"description,omitempty" json:"description,omitempty"`
+}
+
+// Predicate is a boolean tree: leaf = {field, op, value}, composite = all/any.
+type Predicate struct {
+	Field string `yaml:"field,omitempty" json:"field,omitempty"`
+	Op    string `yaml:"op,omitempty" json:"op,omitempty"`
+	Value any    `yaml:"value,omitempty" json:"value,omitempty"`
+	All   []Predicate `yaml:"all,omitempty" json:"all,omitempty"`
+	Any   []Predicate `yaml:"any,omitempty" json:"any,omitempty"`
+}
+
+func (p *Predicate) IsLeaf() bool { return len(p.All) == 0 && len(p.Any) == 0 }
+
+func ValidEntityKind(k string) bool {
+	return k == "" || k == "person" || k == "event" || k == "thing"
+}
+
+func ValidEntityStatus(s string) bool {
+	return s == "" || s == "proposed" || s == "reviewing" || s == "confirmed"
+}
+
+func ValidDirection(d string) bool {
+	return d == "" || d == "one_way" || d == "mutual"
+}
+
+func ValidLayer(l string) bool {
+	return l == "" || l == "master" || l == "transactional" || l == "document" || l == "event"
+}
+
+func ValidRelKind(k string) bool {
+	return k == "" || k == "containment" || k == "membership" || k == "reference" || k == "event"
+}
+
+func ValidConceptOp(op string) bool {
+	switch op {
+	case ">", ">=", "<", "<=", "==", "!=", "in", "not_in", "contains", "between":
+		return true
+	}
+	return false
 }

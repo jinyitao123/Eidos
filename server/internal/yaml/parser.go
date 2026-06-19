@@ -6,13 +6,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// entitiesCompat is used to parse YAML documents that use "entities:" instead of "classes:".
+type entitiesCompat struct {
+	Entities []Class `yaml:"entities"`
+}
+
+type entitiesDocCompat struct {
+	Ontology entitiesCompat `yaml:"ontology"`
+}
+
 // Parse unmarshals a raw YAML byte slice into an Ontology struct.
 // It supports both wrapped format (with top-level "ontology:" key) and
 // unwrapped format (classes/relationships at top level).
 //
-// S2 (DeepSeek) commonly produces a hybrid format where ontology.id/name/version
-// are inside an "ontology:" wrapper but classes/metrics/telemetry are at the top
-// level. Parse handles this by merging top-level data into the wrapper.
+// It also supports the "entities:" key as an alias for "classes:" for
+// compatibility with Nexus-origin ontology documents.
 func Parse(data []byte) (*Ontology, error) {
 	// Try wrapped format first: { ontology: { id: ..., classes: [...] } }
 	var doc OntologyDoc
@@ -23,9 +31,6 @@ func Parse(data []byte) (*Ontology, error) {
 		// Also parse top-level to pick up classes/metrics/telemetry that
 		// S2 may have placed outside the ontology: wrapper.
 		var flat Ontology
-		// Ignore errors: S2 may produce fields with wrong types (e.g., string
-		// instead of []string for source_entities). yaml.v3 still populates
-		// the fields it can parse, so we merge whatever succeeded.
 		yaml.Unmarshal(data, &flat)
 		{
 			if len(doc.Ontology.Classes) == 0 && len(flat.Classes) > 0 {
@@ -50,18 +55,48 @@ func Parse(data []byte) (*Ontology, error) {
 				doc.Ontology.Functions = flat.Functions
 			}
 		}
+
+		// Handle "entities:" as alias for "classes:"
+		if len(doc.Ontology.Classes) == 0 {
+			mergeEntitiesCompat(data, &doc.Ontology)
+		}
+
 		return &doc.Ontology, nil
 	}
 
 	// Try unwrapped format: { id: ..., classes: [...] }
-	// Ignore unmarshal errors for individual fields (e.g., source_entities
-	// as string instead of []string) — same tolerance as the wrapped path.
 	var flat Ontology
 	yaml.Unmarshal(data, &flat)
+
+	// Handle "entities:" as alias for "classes:" in flat format
+	if len(flat.Classes) == 0 {
+		var ec entitiesCompat
+		yaml.Unmarshal(data, &ec)
+		if len(ec.Entities) > 0 {
+			flat.Classes = ec.Entities
+		}
+	}
+
 	if flat.ID == "" {
 		return nil, fmt.Errorf("yaml parse: missing ontology.id (tried both wrapped and flat formats)")
 	}
 	return &flat, nil
+}
+
+func mergeEntitiesCompat(data []byte, o *Ontology) {
+	// Try wrapped "entities:" inside ontology:
+	var dc entitiesDocCompat
+	yaml.Unmarshal(data, &dc)
+	if len(dc.Ontology.Entities) > 0 {
+		o.Classes = dc.Ontology.Entities
+		return
+	}
+	// Try flat "entities:" at top level
+	var ec entitiesCompat
+	yaml.Unmarshal(data, &ec)
+	if len(ec.Entities) > 0 {
+		o.Classes = ec.Entities
+	}
 }
 
 // Marshal serializes an Ontology back to YAML bytes.

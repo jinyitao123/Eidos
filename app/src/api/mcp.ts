@@ -28,6 +28,26 @@ export async function mcpCall<T = unknown>(toolName: string, args: Record<string
   return JSON.parse(text) as T
 }
 
+/** Like mcpCall but returns the tool's raw text result (for tools that reply with prose, not JSON). */
+export async function mcpCallText(toolName: string, args: Record<string, unknown> = {}): Promise<string> {
+  const res = await fetch('/mcp/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: toolName, arguments: args },
+      id: ++reqId,
+    }),
+  })
+  if (!res.ok) throw new Error(`MCP request failed: ${res.status}`)
+  const json = await res.json()
+  if (json.error) throw new Error(json.error.message || 'MCP error')
+  const result = json.result
+  if (result?.isError) throw new Error(result.content?.[0]?.text || 'Tool call failed')
+  return result?.content?.[0]?.text || ''
+}
+
 export async function mcpListTools() {
   const res = await fetch('/mcp/', {
     method: 'POST',

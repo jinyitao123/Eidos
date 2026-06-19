@@ -44,3 +44,23 @@
   padding: 4px 12px;
   font-weight: 500;
 }
+
+/* 旧版页面折叠开关 + 子项(逐步并入工作台) */
+.legacyToggle {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  padding: 6px 12px;
+  font-family: inherit;
+}
+.legacyToggle:hover { color: var(--color-text-secondary); }
+.navItemSub {
+  font-size: 12px;
+  padding-left: 22px;
+  color: var(--color-text-tertiary);
+}

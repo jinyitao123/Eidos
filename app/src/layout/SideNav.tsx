@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
-import { FolderOpen, MessageSquare, GitFork, BookOpen, ClipboardCheck, Rocket } from 'lucide-react'
+import { FolderOpen, Zap } from 'lucide-react'
 import styles from './SideNav.module.css'
 
 async function loadProjectName(projectId: string): Promise<string> {
@@ -32,7 +32,6 @@ export function SideNav() {
   useEffect(() => {
     let cancelled = false
     if (!projectId) {
-      // Defer state update to avoid synchronous setState in effect
       Promise.resolve().then(() => { if (!cancelled) setProjectName('') })
     } else {
       loadProjectName(projectId).then(name => {
@@ -58,20 +57,8 @@ export function SideNav() {
         <>
           <div className={styles.divider} />
           <div className={styles.projectName}>{projectName || '当前项目'}</div>
-          <NavLink to={`/project/${projectId}/build`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <MessageSquare size={15} /> 构建对话
-          </NavLink>
-          <NavLink to={`/project/${projectId}/graph`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <GitFork size={15} /> 图谱审核
-          </NavLink>
-          <NavLink to={`/project/${projectId}/rules`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <BookOpen size={15} /> 规则编辑
-          </NavLink>
-          <NavLink to={`/project/${projectId}/report`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <ClipboardCheck size={15} /> 审核报告
-          </NavLink>
-          <NavLink to={`/project/${projectId}/publish`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
-            <Rocket size={15} /> 发布管道
+          <NavLink to={`/project/${projectId}/studio`} className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}>
+            <Zap size={15} /> 工作台
           </NavLink>
         </>
       )}

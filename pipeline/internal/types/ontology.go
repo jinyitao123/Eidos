@@ -27,42 +27,67 @@ type Class struct {
 	Name              string             `yaml:"name" json:"name"`
 	Description       string             `yaml:"description,omitempty" json:"description,omitempty"`
 	FirstCitizen      bool               `yaml:"first_citizen,omitempty" json:"first_citizen,omitempty"`
-	Phase             string             `yaml:"phase" json:"phase"`
+	Phase             string             `yaml:"phase,omitempty" json:"phase,omitempty"`
 	ImportedFrom      string             `yaml:"imported_from,omitempty" json:"imported_from,omitempty"`
 	Attributes        []Attribute        `yaml:"attributes" json:"attributes"`
 	UniqueConstraints []UniqueConstraint `yaml:"unique_constraints,omitempty" json:"unique_constraints,omitempty"`
+	Kind              string             `yaml:"kind,omitempty" json:"kind,omitempty"`
+	Status            string             `yaml:"status,omitempty" json:"status,omitempty"`
+	Source            string             `yaml:"source,omitempty" json:"source,omitempty"`
+	ParentRef         string             `yaml:"parent_ref,omitempty" json:"parent_ref,omitempty"`
+	InheritedFrom     string             `yaml:"inherited_from,omitempty" json:"inherited_from,omitempty"`
+	Domain            string             `yaml:"domain,omitempty" json:"domain,omitempty"`
+	Layer             string             `yaml:"layer,omitempty" json:"layer,omitempty"`
+	Observable        *bool              `yaml:"observable,omitempty" json:"observable,omitempty"`
+	Aliases           []string           `yaml:"aliases,omitempty" json:"aliases,omitempty"`
 }
+
+type Entity = Class
 
 type UniqueConstraint struct {
 	Columns []string `yaml:"columns" json:"columns"`
 }
 
 type Attribute struct {
-	ID           string   `yaml:"id" json:"id"`
-	Name         string   `yaml:"name" json:"name"`
-	Type         string   `yaml:"type" json:"type"`
-	Required     bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	Unique       bool     `yaml:"unique,omitempty" json:"unique,omitempty"`
-	Default      any      `yaml:"default,omitempty" json:"default,omitempty"`
-	Derived      string   `yaml:"derived,omitempty" json:"derived,omitempty"`
-	Configurable bool     `yaml:"configurable,omitempty" json:"configurable,omitempty"`
-	EnumValues   []string `yaml:"enum_values,omitempty" json:"enum_values,omitempty"`
-	Unit         string   `yaml:"unit,omitempty" json:"unit,omitempty"`
-	ValueRange   string   `yaml:"value_range,omitempty" json:"value_range,omitempty"`
-	Phase        string   `yaml:"phase,omitempty" json:"phase,omitempty"`
-	Description  string   `yaml:"description,omitempty" json:"description,omitempty"`
+	ID            string              `yaml:"id" json:"id"`
+	Name          string              `yaml:"name" json:"name"`
+	Type          string              `yaml:"type" json:"type"`
+	Required      bool                `yaml:"required,omitempty" json:"required,omitempty"`
+	Unique        bool                `yaml:"unique,omitempty" json:"unique,omitempty"`
+	Default       any                 `yaml:"default,omitempty" json:"default,omitempty"`
+	Derived       string              `yaml:"derived,omitempty" json:"derived,omitempty"`
+	Formula       string              `yaml:"formula,omitempty" json:"formula,omitempty"`
+	Configurable  bool                `yaml:"configurable,omitempty" json:"configurable,omitempty"`
+	EnumValues    []string            `yaml:"enum_values,omitempty" json:"enum_values,omitempty"`
+	Unit          string              `yaml:"unit,omitempty" json:"unit,omitempty"`
+	ValueRange    string              `yaml:"value_range,omitempty" json:"value_range,omitempty"`
+	Phase         string              `yaml:"phase,omitempty" json:"phase,omitempty"`
+	Description   string              `yaml:"description,omitempty" json:"description,omitempty"`
+	GraphSync     bool                `yaml:"graph_sync,omitempty" json:"graph_sync,omitempty"`
+	IsMetric      bool                `yaml:"is_metric,omitempty" json:"is_metric,omitempty"`
+	Exposed       bool                `yaml:"exposed,omitempty" json:"exposed,omitempty"`
+	Constraint    map[string]any      `yaml:"constraint,omitempty" json:"constraint,omitempty"`
+	RefTo         string              `yaml:"ref_to,omitempty" json:"ref_to,omitempty"`
+	PrimaryKey    bool                `yaml:"primary_key,omitempty" json:"primary_key,omitempty"`
+	InheritedFrom string              `yaml:"inherited_from,omitempty" json:"inherited_from,omitempty"`
+	Aliases       []string            `yaml:"aliases,omitempty" json:"aliases,omitempty"`
+	EnumAliases   map[string][]string `yaml:"enum_aliases,omitempty" json:"enum_aliases,omitempty"`
 }
 
 type Relationship struct {
-	ID             string          `yaml:"id" json:"id"`
-	Name           string          `yaml:"name" json:"name"`
-	From           string          `yaml:"from" json:"from"`
-	To             string          `yaml:"to" json:"to"`
-	Cardinality    string          `yaml:"cardinality" json:"cardinality"`
-	Required       bool            `yaml:"required,omitempty" json:"required,omitempty"`
-	Phase          string          `yaml:"phase,omitempty" json:"phase,omitempty"`
-	Description    string          `yaml:"description,omitempty" json:"description,omitempty"`
-	EdgeAttributes []EdgeAttribute `yaml:"edge_attributes,omitempty" json:"edge_attributes,omitempty"`
+	ID              string          `yaml:"id" json:"id"`
+	Name            string          `yaml:"name" json:"name"`
+	From            string          `yaml:"from" json:"from"`
+	To              string          `yaml:"to" json:"to"`
+	Cardinality     string          `yaml:"cardinality" json:"cardinality"`
+	Required        bool            `yaml:"required,omitempty" json:"required,omitempty"`
+	Phase           string          `yaml:"phase,omitempty" json:"phase,omitempty"`
+	Description     string          `yaml:"description,omitempty" json:"description,omitempty"`
+	EdgeAttributes  []EdgeAttribute `yaml:"edge_attributes,omitempty" json:"edge_attributes,omitempty"`
+	Direction       string          `yaml:"direction,omitempty" json:"direction,omitempty"`
+	Status          string          `yaml:"status,omitempty" json:"status,omitempty"`
+	Kind            string          `yaml:"kind,omitempty" json:"kind,omitempty"`
+	LinkedAttribute string          `yaml:"linked_attribute,omitempty" json:"linked_attribute,omitempty"`
 }
 
 type EdgeAttribute struct {

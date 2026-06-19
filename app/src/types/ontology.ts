@@ -16,10 +16,14 @@ export interface OntologyAttribute {
   value_range?: string
   description?: string
   phase?: string
-  /** v1.2: marks attribute as metric-type calculation property */
   is_metric?: boolean
-  /** v1.2: marks attribute as discoverable by external agents */
   exposed?: boolean
+  constraint?: Record<string, unknown>
+  ref_to?: string
+  primary_key?: boolean
+  inherited_from?: string
+  aliases?: string[]
+  enum_aliases?: Record<string, string[]>
 }
 
 export interface OntologyClass {
@@ -29,12 +33,21 @@ export interface OntologyClass {
   phase?: string
   description?: string
   imported_from?: string
-  /** v1.2: inherit from interface or parent class */
   extends?: string
-  /** v1.2: composite unique key definitions */
   unique_constraints?: { columns: string[] }[]
   attributes?: OntologyAttribute[]
+  kind?: 'person' | 'event' | 'thing'
+  status?: 'proposed' | 'reviewing' | 'confirmed'
+  source?: string
+  parent_ref?: string
+  inherited_from?: string
+  domain?: string
+  layer?: 'core' | 'support' | 'generic'
+  observable?: boolean
+  aliases?: string[]
 }
+
+export type OntologyEntity = OntologyClass
 
 export interface EdgeAttribute {
   id: string
@@ -51,6 +64,53 @@ export interface OntologyRelationship {
   to: string
   cardinality: 'one_to_one' | 'one_to_many' | 'many_to_one' | 'many_to_many'
   edge_attributes?: EdgeAttribute[]
+  direction?: 'one_way' | 'two_way'
+  status?: string
+  kind?: string
+  linked_attribute?: string
+}
+
+export interface OntologyConcept {
+  id: string
+  name: string
+  aliases?: string[]
+  subject: string
+  predicate?: OntologyPredicate
+  description?: string
+}
+
+export interface OntologyPredicate {
+  field?: string
+  op?: string
+  value?: unknown
+  all?: OntologyPredicate[]
+  any?: OntologyPredicate[]
+}
+
+export interface Proposal {
+  id: string
+  ontology_id: string
+  kind: 'attribute' | 'entity' | 'relationship'
+  entity_id?: string
+  payload: string
+  reason?: string
+  proposer?: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  decided_at?: string
+}
+
+export interface VersionMeta {
+  version: number
+  kind: 'revision' | 'release'
+  content_hash: string
+  source: string
+  created_at: string
+}
+
+export interface HealthReport {
+  score: number
+  findings: string[]
 }
 
 export interface RuleParam {
@@ -269,6 +329,8 @@ export interface Ontology {
   description?: string
   classes: OntologyClass[]
   relationships: OntologyRelationship[]
+  concepts?: OntologyConcept[]
+  parent_refs?: string[]
   metrics?: OntologyMetric[]
   telemetry?: OntologyTelemetry[]
   rules?: OntologyRule[]

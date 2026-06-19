@@ -17,3 +17,11 @@
   margin: 0 auto;
 }
 
+/* 全幅页(Studio):占满 grid 第2行(顶栏 52px 之下),无内边距/限宽,内部自管滚动。 */
+.mainFull {
+  grid-column: 2;
+  grid-row: 2;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
